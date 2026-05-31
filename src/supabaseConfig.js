@@ -7,5 +7,5 @@
 // Tant que ces valeurs ne sont pas remplies, Carta fonctionne en local
 // (sans synchronisation).
 
-export const SUPABASE_URL = 'https://VOTRE_PROJET.supabase.co'
-export const SUPABASE_ANON_KEY = 'VOTRE_CLE_ANON_PUBLIQUE'
+export const SUPABASE_URL = 'https://bbqtpsijneremxpkpxdk.supabase.co'
+export const SUPABASE_ANON_KEY = 'sb_publishable_Pf62AOC7VrnH_Rcw1zSvNA_vQRFII9i'
