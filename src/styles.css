@@ -55,6 +55,48 @@ body {
   letter-spacing: 0.5px;
 }
 
+.brand-spacer {
+  flex: 1;
+}
+
+/* ===== Barre de connexion / synchronisation ===== */
+.auth-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.auth-email {
+  padding: 7px 11px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--paper-2);
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 14px;
+  min-width: 200px;
+}
+
+.auth-email:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.sync-state {
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.sync-state.ok {
+  color: var(--accent-2);
+}
+
+.sync-dot {
+  color: var(--accent-2);
+  font-size: 12px;
+}
+
 .tagline {
   color: var(--ink-soft);
   font-style: italic;

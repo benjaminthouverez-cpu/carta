@@ -1,13 +1,16 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Group from './components/Group'
 import ContactBook from './components/ContactBook'
+import AuthBar from './components/AuthBar'
+import { supabase } from './supabase'
 import { loadState, saveState, makeCard, makeColumn, makeGroup, uid } from './storage'
 
 // Les filtres disponibles en haut du tableau.
 const FILTERS = ['Tous', 'Pro', 'Perso', 'Idée']
 
 export default function App() {
-  // On charge une seule fois l'état sauvegardé au démarrage.
+  // On charge une seule fois l'état sauvegardé localement au démarrage
+  // (cache hors-ligne ; remplacé par les données du cloud après connexion).
   const initial = loadState()
   const [groups, setGroups] = useState(initial.groups)
   const [contacts, setContacts] = useState(initial.contacts)
@@ -15,10 +18,138 @@ export default function App() {
   const [search, setSearch] = useState('')
   const [showContacts, setShowContacts] = useState(false)
 
-  // À chaque changement, on sauvegarde automatiquement dans le navigateur.
+  // Synchronisation cloud (Supabase).
+  const [session, setSession] = useState(null)
+  const [cloudReady, setCloudReady] = useState(false)
+  const [status, setStatus] = useState('')
+  const lastSyncedRef = useRef(null) // dernier contenu envoyé/reçu (anti-boucle)
+  const saveTimerRef = useRef(null)
+  const stateRef = useRef({ groups, contacts })
+  stateRef.current = { groups, contacts }
+
+  // --- Suivi de la session de connexion ---
   useEffect(() => {
-    saveState({ groups, contacts })
-  }, [groups, contacts])
+    if (!supabase) return
+    supabase.auth.getSession().then(({ data }) => setSession(data.session))
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
+      setSession(s)
+    })
+    return () => sub.subscription.unsubscribe()
+  }, [])
+
+  // --- Au login : on charge les données du cloud ---
+  useEffect(() => {
+    if (!supabase || !session) {
+      setCloudReady(false)
+      return
+    }
+    let cancelled = false
+    async function load() {
+      setCloudReady(false)
+      setStatus('Chargement…')
+      const { data, error } = await supabase
+        .from('boards')
+        .select('data')
+        .eq('user_id', session.user.id)
+        .maybeSingle()
+      if (cancelled) return
+      if (error) {
+        setStatus('Erreur de chargement')
+        setCloudReady(true)
+        return
+      }
+      if (data && data.data && Array.isArray(data.data.groups)) {
+        // Le cloud fait foi : on adopte ses données.
+        lastSyncedRef.current = JSON.stringify(data.data)
+        setGroups(data.data.groups)
+        setContacts(data.data.contacts || [])
+        setStatus('Synchronisé')
+      } else {
+        // Aucune donnée dans le cloud : on y pousse l'état local actuel.
+        await pushToCloud(session.user.id, stateRef.current)
+      }
+      setCloudReady(true)
+    }
+    load()
+    return () => {
+      cancelled = true
+    }
+  }, [session])
+
+  // --- Mise à jour en direct depuis un autre appareil ---
+  useEffect(() => {
+    if (!supabase || !session) return
+    const channel = supabase
+      .channel('board-' + session.user.id)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'boards',
+          filter: 'user_id=eq.' + session.user.id,
+        },
+        payload => {
+          const row = payload.new
+          if (!row || !row.data || !Array.isArray(row.data.groups)) return
+          const json = JSON.stringify(row.data)
+          if (json === lastSyncedRef.current) return // c'est notre propre écriture
+          lastSyncedRef.current = json
+          setGroups(row.data.groups)
+          setContacts(row.data.contacts || [])
+          setStatus('Mis à jour depuis un autre appareil')
+        }
+      )
+      .subscribe()
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [session])
+
+  // --- Sauvegarde : locale toujours, cloud si connecté ---
+  useEffect(() => {
+    const payload = { groups, contacts }
+    saveState(payload) // cache local (hors-ligne)
+
+    if (!supabase || !session) return
+    if (!cloudReady) return // on attend la fin du chargement initial
+    const json = JSON.stringify(payload)
+    if (json === lastSyncedRef.current) return // rien de neuf
+
+    setStatus('Sauvegarde…')
+    clearTimeout(saveTimerRef.current)
+    saveTimerRef.current = setTimeout(() => {
+      pushToCloud(session.user.id, payload)
+    }, 700)
+  }, [groups, contacts, session, cloudReady])
+
+  // Envoie l'état complet vers le cloud.
+  async function pushToCloud(userId, payload) {
+    const json = JSON.stringify(payload)
+    const { error } = await supabase
+      .from('boards')
+      .upsert({ user_id: userId, data: payload, updated_at: new Date().toISOString() })
+    if (error) {
+      setStatus('Erreur de sauvegarde')
+    } else {
+      lastSyncedRef.current = json
+      setStatus('Synchronisé')
+    }
+  }
+
+  // Connexion par lien magique envoyé par e-mail.
+  async function signIn(email) {
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: { emailRedirectTo: window.location.href.split('#')[0] },
+    })
+    return error ? { ok: false, message: error.message } : { ok: true }
+  }
+
+  async function signOut() {
+    await supabase.auth.signOut()
+    setStatus('')
+  }
 
   // Toutes les colonnes, tous groupes confondus (utile pour déplacer une carte).
   const allColumns = groups.flatMap(g => g.columns)
@@ -154,9 +285,7 @@ export default function App() {
     const nbCols = grp ? grp.columns.length : 0
     if (
       nbCols > 0 &&
-      !window.confirm(
-        `Supprimer le groupe « ${grp.title} » et ses ${nbCols} colonne(s) ?`
-      )
+      !window.confirm(`Supprimer le groupe « ${grp.title} » et ses ${nbCols} colonne(s) ?`)
     ) {
       return
     }
@@ -170,7 +299,6 @@ export default function App() {
 
   function deleteContact(contactId) {
     setContacts(cs => cs.filter(c => c.id !== contactId))
-    // On retire aussi ce contact des cartes où il était nommé.
     setGroups(gs =>
       gs.map(g => ({
         ...g,
@@ -186,7 +314,6 @@ export default function App() {
   }
 
   // ---------- Filtre + recherche ----------
-  // Une carte est affichée si elle passe le filtre ET la recherche.
   function isVisibleCard(card) {
     if (filter !== 'Tous' && card.label !== filter) return false
     const q = search.trim().toLowerCase()
@@ -204,6 +331,14 @@ export default function App() {
         <div className="brand">
           <h1>Carta</h1>
           <span className="tagline">vos sujets, à l'encre sur papier</span>
+          <div className="brand-spacer" />
+          <AuthBar
+            configured={!!supabase}
+            session={session}
+            status={status}
+            onSignIn={signIn}
+            onSignOut={signOut}
+          />
         </div>
 
         <div className="toolbar">
