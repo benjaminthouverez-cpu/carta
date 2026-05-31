@@ -1,5 +1,7 @@
 // Gestion des données : sauvegarde locale dans le navigateur (localStorage).
 // Aucune connexion, aucun serveur, aucun compte.
+//
+// Hiérarchie : groupes  ->  colonnes (thèmes)  ->  cartes (sujets).
 
 const STORAGE_KEY = 'carta-data-v1'
 
@@ -21,13 +23,16 @@ export function makeColumn(title, cards = []) {
   return { id: uid(), title, cards }
 }
 
-// Colonnes par défaut au tout premier lancement.
-function defaultColumns() {
+// Crée un nouveau groupe (regroupe plusieurs colonnes).
+export function makeGroup(title, columns = []) {
+  return { id: uid(), title, collapsed: false, columns }
+}
+
+// Groupes par défaut au tout premier lancement.
+function defaultGroups() {
   return [
-    makeColumn('US · Dubai'),
-    makeColumn('Europe'),
-    makeColumn('Idées'),
-    makeColumn('Perso'),
+    makeGroup('Travail', [makeColumn('US · Dubai'), makeColumn('Europe')]),
+    makeGroup('Vie perso', [makeColumn('Idées'), makeColumn('Perso')]),
   ]
 }
 
@@ -37,14 +42,23 @@ export function loadState() {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (raw) {
       const data = JSON.parse(raw)
+      // Nouvelle version : déjà structurée en groupes.
+      if (data && Array.isArray(data.groups)) {
+        return { groups: data.groups, contacts: data.contacts || [] }
+      }
+      // Ancienne version (colonnes à plat) : on les range dans un groupe
+      // pour ne rien perdre.
       if (data && Array.isArray(data.columns)) {
-        return { columns: data.columns, contacts: data.contacts || [] }
+        return {
+          groups: [makeGroup('Mes thèmes', data.columns)],
+          contacts: data.contacts || [],
+        }
       }
     }
   } catch (e) {
     // Données illisibles : on repart proprement.
   }
-  return { columns: defaultColumns(), contacts: [] }
+  return { groups: defaultGroups(), contacts: [] }
 }
 
 // Enregistre l'état complet dans le navigateur.

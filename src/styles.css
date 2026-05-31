@@ -128,18 +128,96 @@ body {
   background: var(--paper-2);
 }
 
-/* ===== Tableau / colonnes ===== */
+/* ===== Tableau : pile verticale de groupes ===== */
 .board {
   flex: 1;
   display: flex;
-  gap: 18px;
+  flex-direction: column;
+  gap: 22px;
   padding: 22px 24px 40px;
+  overflow-y: auto;
+}
+
+/* ===== Groupe (grand thème repliable) ===== */
+.group {
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--accent);
+  border-radius: 16px;
+  background: rgba(154, 91, 52, 0.04);
+  padding: 12px 14px 14px;
+}
+
+.group-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.collapse-btn {
+  border: none;
+  background: transparent;
+  color: var(--ink);
+  font-size: 16px;
+  cursor: pointer;
+  padding: 2px 4px;
+  line-height: 1;
+}
+
+.group-name {
+  margin: 0;
+  font-size: 20px;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.group-name-input {
+  font-size: 20px;
+  font-family: inherit;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  padding: 3px 7px;
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--ink);
+}
+
+.group-count {
+  font-size: 13px;
+  color: #fff7ea;
+  background: var(--accent);
+  border-radius: 999px;
+  padding: 1px 9px;
+}
+
+.group-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ghost-btn.small {
+  padding: 5px 10px;
+  font-size: 13px;
+}
+
+.group-columns {
+  display: flex;
+  gap: 16px;
   overflow-x: auto;
   align-items: flex-start;
+  padding-bottom: 4px;
+}
+
+.empty-group {
+  padding: 14px;
 }
 
 .column {
-  flex: 0 0 290px;
+  flex: 0 0 280px;
   background: var(--paper-2);
   border: 1px solid var(--line);
   border-radius: 16px;
@@ -147,7 +225,7 @@ body {
   box-shadow: var(--shadow);
   display: flex;
   flex-direction: column;
-  max-height: calc(100vh - 170px);
+  max-height: 70vh;
 }
 
 .column.drag-over {
@@ -185,6 +263,18 @@ body {
   display: flex;
   align-items: center;
   gap: 6px;
+}
+
+.move-col-select {
+  font-size: 12px;
+  font-family: inherit;
+  padding: 2px 4px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--paper);
+  color: var(--ink-soft);
+  cursor: pointer;
+  max-width: 60px;
 }
 
 .count {

@@ -1,10 +1,12 @@
 import { useState } from 'react'
 import Card from './Card'
 
-// Une colonne = un thème, contenant des cartes.
+// Une colonne = un thème, contenant des cartes. Elle appartient à un groupe.
 export default function Column({
   column,
-  columns,
+  groupId,
+  groups,
+  allColumns,
   contacts,
   isVisibleCard,
   onAddCard,
@@ -13,6 +15,7 @@ export default function Column({
   onMoveCard,
   onRenameColumn,
   onDeleteColumn,
+  onMoveColumn,
   onManageContacts,
 }) {
   const [newTitle, setNewTitle] = useState('')
@@ -74,6 +77,26 @@ export default function Column({
         )}
         <div className="column-meta">
           <span className="count">{visibleCards.length}</span>
+          {/* Déplacer toute la colonne vers un autre groupe. */}
+          {groups.length > 1 && (
+            <select
+              className="move-col-select"
+              value=""
+              onChange={e => {
+                if (e.target.value) onMoveColumn(column.id, e.target.value)
+              }}
+              title="Déplacer cette colonne vers un autre groupe"
+            >
+              <option value="">↦</option>
+              {groups
+                .filter(g => g.id !== groupId)
+                .map(g => (
+                  <option key={g.id} value={g.id}>
+                    {g.title}
+                  </option>
+                ))}
+            </select>
+          )}
           <button
             className="icon-btn"
             title="Supprimer la colonne"
@@ -91,7 +114,7 @@ export default function Column({
             card={card}
             columnId={column.id}
             columnTitle={column.title}
-            columns={columns}
+            columns={allColumns}
             contacts={contacts}
             onUpdate={onUpdateCard}
             onDelete={onDeleteCard}
