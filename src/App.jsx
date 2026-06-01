@@ -8,6 +8,15 @@ import { loadState, saveState, makeCard, makeColumn, makeGroup, uid } from './st
 // Les filtres disponibles en haut du tableau.
 const FILTERS = ['Tous', 'Pro', 'Perso', 'Idée']
 
+// Identifiant unique de cet onglet/appareil. Il sert à reconnaître — et donc à
+// ignorer — nos PROPRES mises à jour qui nous reviennent en temps réel.
+// (Supabase stocke en JSON « jsonb » et réordonne les clés : on ne peut donc
+// pas se fier à une simple comparaison de texte pour repérer notre écho.)
+const CLIENT_ID =
+  typeof crypto !== 'undefined' && crypto.randomUUID
+    ? crypto.randomUUID()
+    : Math.random().toString(36).slice(2)
+
 export default function App() {
   // On charge une seule fois l'état sauvegardé localement au démarrage
   // (cache hors-ligne ; remplacé par les données du cloud après connexion).
@@ -59,10 +68,15 @@ export default function App() {
         return
       }
       if (data && data.data && Array.isArray(data.data.groups)) {
-        // Le cloud fait foi : on adopte ses données.
-        lastSyncedRef.current = JSON.stringify(data.data)
-        setGroups(data.data.groups)
-        setContacts(data.data.contacts || [])
+        // Le cloud fait foi : on adopte ses données (on ne garde que le contenu
+        // du tableau, sans les métadonnées internes comme _writer).
+        const content = {
+          groups: data.data.groups,
+          contacts: data.data.contacts || [],
+        }
+        lastSyncedRef.current = JSON.stringify(content)
+        setGroups(content.groups)
+        setContacts(content.contacts)
         setStatus('Synchronisé')
       } else {
         // Aucune donnée dans le cloud : on y pousse l'état local actuel.
@@ -92,11 +106,14 @@ export default function App() {
         payload => {
           const row = payload.new
           if (!row || !row.data || !Array.isArray(row.data.groups)) return
-          const json = JSON.stringify(row.data)
-          if (json === lastSyncedRef.current) return // c'est notre propre écriture
-          lastSyncedRef.current = json
-          setGroups(row.data.groups)
-          setContacts(row.data.contacts || [])
+          // On ignore nos propres écritures (même appareil) : elles sont déjà
+          // appliquées localement. On n'applique que les vraies mises à jour
+          // venant d'un AUTRE appareil.
+          if (row.data._writer === CLIENT_ID) return
+          const content = { groups: row.data.groups, contacts: row.data.contacts || [] }
+          lastSyncedRef.current = JSON.stringify(content)
+          setGroups(content.groups)
+          setContacts(content.contacts)
           setStatus('Mis à jour depuis un autre appareil')
         }
       )
@@ -126,9 +143,13 @@ export default function App() {
   // Envoie l'état complet vers le cloud.
   async function pushToCloud(userId, payload) {
     const json = JSON.stringify(payload)
-    const { error } = await supabase
-      .from('boards')
-      .upsert({ user_id: userId, data: payload, updated_at: new Date().toISOString() })
+    const { error } = await supabase.from('boards').upsert({
+      user_id: userId,
+      // On marque l'écriture avec notre identifiant d'appareil pour pouvoir
+      // ignorer l'écho temps-réel qui nous reviendra.
+      data: { ...payload, _writer: CLIENT_ID },
+      updated_at: new Date().toISOString(),
+    })
     if (error) {
       setStatus('Erreur de sauvegarde')
     } else {
