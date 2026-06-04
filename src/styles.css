@@ -375,8 +375,54 @@ body {
 
 .card-top {
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
   align-items: center;
+}
+
+.priority {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  padding: 2px 10px 2px 7px;
+  border: none;
+  border-radius: 999px;
+  font-family: inherit;
+  cursor: pointer;
+  user-select: none;
+}
+
+.priority-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.priority-Haute {
+  background: #f5d9d2;
+  color: #a23b2b;
+}
+.priority-Haute .priority-dot {
+  background: #c0392b;
+}
+
+.priority-Moyenne {
+  background: #f0dcc4;
+  color: #9a5b34;
+}
+.priority-Moyenne .priority-dot {
+  background: #d98a3b;
+}
+
+.priority-Basse {
+  background: #dde6cf;
+  color: #4d5d34;
+}
+.priority-Basse .priority-dot {
+  background: #6f8a4a;
 }
 
 .card-title {

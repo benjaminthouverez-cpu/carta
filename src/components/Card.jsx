@@ -1,6 +1,9 @@
 import { useState } from 'react'
 
-// Une carte = un sujet, avec titre, note et personnes.
+// Cycle des priorités : un clic passe à la suivante.
+const PRIORITY_NEXT = { Haute: 'Moyenne', Moyenne: 'Basse', Basse: 'Haute' }
+
+// Une carte = un sujet, avec titre, note, priorité et personnes.
 export default function Card({
   card,
   columnId,
@@ -13,6 +16,14 @@ export default function Card({
 }) {
   const [editingTitle, setEditingTitle] = useState(false)
   const [editingNote, setEditingNote] = useState(false)
+
+  // Priorité actuelle (Moyenne par défaut pour les cartes existantes sans champ).
+  const priority = card.priority || 'Moyenne'
+
+  // Change la priorité au clic (Haute → Moyenne → Basse → Haute).
+  function cyclePriority() {
+    onUpdate({ ...card, priority: PRIORITY_NEXT[priority] || 'Moyenne' })
+  }
 
   // Construit le lien de composition Gmail pré-rempli (ouvre Gmail dans le
   // navigateur plutôt que l'application mail par défaut comme le ferait mailto:).
@@ -49,6 +60,14 @@ export default function Card({
       }}
     >
       <div className="card-top">
+        <button
+          className={`priority priority-${priority}`}
+          onClick={cyclePriority}
+          title="Cliquer pour changer la priorité"
+        >
+          <span className="priority-dot" />
+          {priority}
+        </button>
         <button className="icon-btn" title="Supprimer la carte" onClick={() => onDelete(card.id)}>
           ×
         </button>

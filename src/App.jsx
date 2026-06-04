@@ -416,9 +416,6 @@ export default function App() {
               ＋
             </button>
           </div>
-          <button className="ghost-btn" onClick={() => setShowContacts(true)}>
-            Carnet
-          </button>
           <button className="ghost-btn" onClick={addGroup}>
             ＋ Groupe
           </button>
