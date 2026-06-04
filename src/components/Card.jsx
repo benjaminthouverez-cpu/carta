@@ -14,16 +14,22 @@ export default function Card({
   const [editingTitle, setEditingTitle] = useState(false)
   const [editingNote, setEditingNote] = useState(false)
 
-  // Construit le lien e-mail pré-rempli (mailto).
+  // Construit le lien de composition Gmail pré-rempli (ouvre Gmail dans le
+  // navigateur plutôt que l'application mail par défaut comme le ferait mailto:).
   function emailHref() {
     const assigned = contacts.filter(c => card.people.includes(c.id))
     const to = assigned.map(c => c.email).filter(Boolean).join(',')
-    const subject = encodeURIComponent(card.title)
     const lines = []
     if (card.note) lines.push(card.note)
     lines.push('', `Thème : ${columnTitle}`)
-    const body = encodeURIComponent(lines.join('\n'))
-    return `mailto:${to}?subject=${subject}&body=${body}`
+    const params = new URLSearchParams({
+      view: 'cm', // mode composition
+      fs: '1', // plein écran
+      to,
+      su: card.title,
+      body: lines.join('\n'),
+    })
+    return `https://mail.google.com/mail/?${params.toString()}`
   }
 
   const assignedNames = contacts
@@ -95,7 +101,12 @@ export default function Card({
       )}
 
       <div className="card-actions">
-        <a className="mini-btn" href={emailHref()}>
+        <a
+          className="mini-btn"
+          href={emailHref()}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
           ✉ E-mail
         </a>
         {/* Menu de secours pour mobile : déplacer la carte sans glisser-déposer. */}
