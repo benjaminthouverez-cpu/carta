@@ -1,9 +1,6 @@
 import { useState } from 'react'
 
-// Cycle des étiquettes : un clic passe à la suivante.
-const LABEL_NEXT = { Pro: 'Perso', Perso: 'Idée', Idée: 'Pro' }
-
-// Une carte = un sujet, avec titre, note, étiquette et personnes.
+// Une carte = un sujet, avec titre, note et personnes.
 export default function Card({
   card,
   columnId,
@@ -13,25 +10,9 @@ export default function Card({
   onUpdate,
   onDelete,
   onMove,
-  onManageContacts,
 }) {
   const [editingTitle, setEditingTitle] = useState(false)
   const [editingNote, setEditingNote] = useState(false)
-  const [showPeople, setShowPeople] = useState(false)
-
-  // Change l'étiquette au clic.
-  function cycleLabel() {
-    onUpdate({ ...card, label: LABEL_NEXT[card.label] || 'Pro' })
-  }
-
-  // Coche/décoche une personne du carnet sur cette carte.
-  function togglePerson(contactId) {
-    const has = card.people.includes(contactId)
-    const people = has
-      ? card.people.filter(id => id !== contactId)
-      : [...card.people, contactId]
-    onUpdate({ ...card, people })
-  }
 
   // Construit le lien e-mail pré-rempli (mailto).
   function emailHref() {
@@ -62,13 +43,6 @@ export default function Card({
       }}
     >
       <div className="card-top">
-        <span
-          className={`label label-${card.label}`}
-          onClick={cycleLabel}
-          title="Cliquer pour changer l'étiquette"
-        >
-          {card.label}
-        </span>
         <button className="icon-btn" title="Supprimer la carte" onClick={() => onDelete(card.id)}>
           ×
         </button>
@@ -121,9 +95,6 @@ export default function Card({
       )}
 
       <div className="card-actions">
-        <button className="mini-btn" onClick={() => setShowPeople(s => !s)}>
-          Qui ?
-        </button>
         <a className="mini-btn" href={emailHref()}>
           ✉ E-mail
         </a>
@@ -146,31 +117,6 @@ export default function Card({
             ))}
         </select>
       </div>
-
-      {showPeople && (
-        <div className="people-popover">
-          {contacts.length === 0 && <p className="muted">Carnet vide.</p>}
-          {contacts.map(c => (
-            <label key={c.id} className="people-row">
-              <input
-                type="checkbox"
-                checked={card.people.includes(c.id)}
-                onChange={() => togglePerson(c.id)}
-              />
-              {c.name}
-            </label>
-          ))}
-          <button
-            className="mini-btn"
-            onClick={() => {
-              setShowPeople(false)
-              onManageContacts()
-            }}
-          >
-            ＋ Gérer le carnet
-          </button>
-        </div>
-      )}
     </article>
   )
 }

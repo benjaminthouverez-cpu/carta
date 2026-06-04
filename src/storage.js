@@ -31,17 +31,14 @@ export function saveZoom(z) {
   }
 }
 
-// Les trois étiquettes possibles d'une carte.
-export const LABELS = ['Pro', 'Perso', 'Idée']
-
 // Génère un identifiant unique simple.
 export function uid() {
   return Math.random().toString(36).slice(2, 10) + Date.now().toString(36)
 }
 
 // Crée une nouvelle carte (sujet).
-export function makeCard(title, label = 'Idée') {
-  return { id: uid(), title, note: '', label, people: [] }
+export function makeCard(title) {
+  return { id: uid(), title, note: '', people: [] }
 }
 
 // Crée une nouvelle colonne (thème).

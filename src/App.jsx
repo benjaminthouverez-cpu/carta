@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
 import Group from './components/Group'
-import CategoryBoard from './components/CategoryBoard'
 import ContactBook from './components/ContactBook'
 import AuthBar from './components/AuthBar'
 import { supabase } from './supabase'
@@ -18,9 +17,6 @@ import {
   ZOOM_STEP,
 } from './storage'
 
-// Les filtres disponibles en haut du tableau.
-const FILTERS = ['Tous', 'Pro', 'Perso', 'Idée']
-
 // Identifiant unique de cet onglet/appareil. Il sert à reconnaître — et donc à
 // ignorer — nos PROPRES mises à jour qui nous reviennent en temps réel.
 // (Supabase stocke en JSON « jsonb » et réordonne les clés : on ne peut donc
@@ -36,12 +32,8 @@ export default function App() {
   const initial = loadState()
   const [groups, setGroups] = useState(initial.groups)
   const [contacts, setContacts] = useState(initial.contacts)
-  const [filter, setFilter] = useState('Tous')
   const [search, setSearch] = useState('')
   const [showContacts, setShowContacts] = useState(false)
-  // Vue du tableau : 'themes' (colonnes = thèmes) ou 'categories'
-  // (colonnes = Pro/Perso/Idée, glisser-déposer pour changer la catégorie).
-  const [boardView, setBoardView] = useState('themes')
   // Niveau de zoom de l'affichage (réglage local, persisté par appareil).
   const [zoom, setZoom] = useState(loadZoom)
 
@@ -217,22 +209,6 @@ export default function App() {
     )
   }
 
-  // Change la catégorie (étiquette) d'une carte, où qu'elle soit. Utilisé par
-  // la vue « Catégories » en glisser-déposer.
-  function setCardCategory(cardId, label) {
-    setGroups(gs =>
-      gs.map(g => ({
-        ...g,
-        columns: g.columns.map(c => ({
-          ...c,
-          cards: c.cards.map(card =>
-            card.id === cardId ? { ...card, label } : card
-          ),
-        })),
-      }))
-    )
-  }
-
   function deleteCard(cardId) {
     setGroups(gs =>
       gs.map(g => ({
@@ -368,10 +344,8 @@ export default function App() {
     )
   }
 
-  // ---------- Filtre + recherche ----------
-  // Recherche seule (titre + note) — utilisée par la vue « Catégories », où le
-  // filtre Pro/Perso/Idée n'a pas de sens puisque les colonnes SONT les catégories.
-  function matchesSearch(card) {
+  // ---------- Recherche ----------
+  function isVisibleCard(card) {
     const q = search.trim().toLowerCase()
     if (!q) return true
     return (
@@ -379,19 +353,6 @@ export default function App() {
       (card.note || '').toLowerCase().includes(q)
     )
   }
-
-  function isVisibleCard(card) {
-    if (filter !== 'Tous' && card.label !== filter) return false
-    return matchesSearch(card)
-  }
-
-  // Toutes les cartes à plat, avec le contexte de leur colonne d'origine
-  // (pour la vue par catégorie : déplacement de thème + e-mail restent possibles).
-  const allCards = groups.flatMap(g =>
-    g.columns.flatMap(c =>
-      c.cards.map(card => ({ card, columnId: c.id, columnTitle: c.title }))
-    )
-  )
 
   // ---------- Zoom de l'affichage ----------
   useEffect(() => {
@@ -428,35 +389,6 @@ export default function App() {
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
-          {boardView === 'themes' && (
-            <div className="filters">
-              {FILTERS.map(f => (
-                <button
-                  key={f}
-                  className={`filter-btn ${filter === f ? 'active' : ''}`}
-                  onClick={() => setFilter(f)}
-                >
-                  {f}
-                </button>
-              ))}
-            </div>
-          )}
-          <div className="view-toggle" role="group" aria-label="Mode d'affichage">
-            <button
-              className={`filter-btn ${boardView === 'themes' ? 'active' : ''}`}
-              onClick={() => setBoardView('themes')}
-              title="Organiser par thèmes"
-            >
-              Thèmes
-            </button>
-            <button
-              className={`filter-btn ${boardView === 'categories' ? 'active' : ''}`}
-              onClick={() => setBoardView('categories')}
-              title="Organiser par catégorie — glissez une carte pour changer sa catégorie"
-            >
-              Catégories
-            </button>
-          </div>
           <div className="zoom-control" role="group" aria-label="Zoom de l'affichage">
             <button
               className="zoom-btn"
@@ -487,51 +419,35 @@ export default function App() {
           <button className="ghost-btn" onClick={() => setShowContacts(true)}>
             Carnet
           </button>
-          {boardView === 'themes' && (
-            <button className="ghost-btn" onClick={addGroup}>
-              ＋ Groupe
-            </button>
-          )}
+          <button className="ghost-btn" onClick={addGroup}>
+            ＋ Groupe
+          </button>
         </div>
       </header>
 
       <main className="board" style={{ zoom }}>
-        {boardView === 'categories' ? (
-          <CategoryBoard
-            cards={allCards}
+        {groups.map(group => (
+          <Group
+            key={group.id}
+            group={group}
+            groups={groups}
             allColumns={allColumns}
             contacts={contacts}
-            matchesSearch={matchesSearch}
-            onSetCategory={setCardCategory}
+            isVisibleCard={isVisibleCard}
+            onToggle={toggleGroup}
+            onRenameGroup={renameGroup}
+            onDeleteGroup={deleteGroup}
+            onAddColumn={addColumn}
+            onAddCard={addCard}
             onUpdateCard={updateCard}
             onDeleteCard={deleteCard}
             onMoveCard={moveCard}
+            onRenameColumn={renameColumn}
+            onDeleteColumn={deleteColumn}
+            onMoveColumn={moveColumn}
             onManageContacts={() => setShowContacts(true)}
           />
-        ) : (
-          groups.map(group => (
-            <Group
-              key={group.id}
-              group={group}
-              groups={groups}
-              allColumns={allColumns}
-              contacts={contacts}
-              isVisibleCard={isVisibleCard}
-              onToggle={toggleGroup}
-              onRenameGroup={renameGroup}
-              onDeleteGroup={deleteGroup}
-              onAddColumn={addColumn}
-              onAddCard={addCard}
-              onUpdateCard={updateCard}
-              onDeleteCard={deleteCard}
-              onMoveCard={moveCard}
-              onRenameColumn={renameColumn}
-              onDeleteColumn={deleteColumn}
-              onMoveColumn={moveColumn}
-              onManageContacts={() => setShowContacts(true)}
-            />
-          ))
-        )}
+        ))}
       </main>
 
       {showContacts && (
