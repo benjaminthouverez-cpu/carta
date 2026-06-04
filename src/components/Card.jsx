@@ -299,8 +299,9 @@ export default function Card({
           href={emailHref()}
           target="_blank"
           rel="noopener noreferrer"
+          title="Envoyer par e-mail"
         >
-          ✉ E-mail
+          ✉
         </a>
         <button
           className={`mini-btn${myLinks.length ? ' has-links' : ''}`}
@@ -318,7 +319,7 @@ export default function Card({
           }}
           title="Déplacer vers une autre colonne"
         >
-          <option value="">Déplacer ▾</option>
+          <option value="">↦</option>
           {columns
             .filter(c => c.id !== columnId)
             .map(c => (
