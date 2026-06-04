@@ -5,6 +5,32 @@
 
 const STORAGE_KEY = 'carta-data-v1'
 
+// Préférence d'affichage propre à l'appareil (non synchronisée dans le cloud).
+const ZOOM_KEY = 'carta-zoom'
+export const ZOOM_MIN = 0.5
+export const ZOOM_MAX = 1.6
+export const ZOOM_STEP = 0.1
+
+// Lit le niveau de zoom sauvegardé (1 = 100 % par défaut).
+export function loadZoom() {
+  try {
+    const v = parseFloat(localStorage.getItem(ZOOM_KEY))
+    if (!Number.isNaN(v) && v >= ZOOM_MIN && v <= ZOOM_MAX) return v
+  } catch (e) {
+    // Stockage indisponible : on ignore.
+  }
+  return 1
+}
+
+// Enregistre le niveau de zoom.
+export function saveZoom(z) {
+  try {
+    localStorage.setItem(ZOOM_KEY, String(z))
+  } catch (e) {
+    // Stockage indisponible : on ignore.
+  }
+}
+
 // Les trois étiquettes possibles d'une carte.
 export const LABELS = ['Pro', 'Perso', 'Idée']
 

@@ -178,6 +178,56 @@ body {
   border-left: 1px solid var(--line);
 }
 
+/* Contrôle de zoom (− / % / +). */
+.zoom-control {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding-left: 10px;
+  border-left: 1px solid var(--line);
+}
+
+.zoom-btn {
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--paper-2);
+  color: var(--ink);
+  font-size: 17px;
+  line-height: 1;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+
+.zoom-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+.zoom-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.zoom-level {
+  min-width: 50px;
+  padding: 6px 4px;
+  border: none;
+  background: transparent;
+  color: var(--ink-soft);
+  font-family: inherit;
+  font-size: 13px;
+  text-align: center;
+  cursor: pointer;
+}
+
+.zoom-level:hover {
+  color: var(--accent);
+}
+
 /* ===== Vue par catégorie (colonnes Pro / Perso / Idée) ===== */
 .category-board {
   display: flex;

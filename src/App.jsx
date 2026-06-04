@@ -4,7 +4,19 @@ import CategoryBoard from './components/CategoryBoard'
 import ContactBook from './components/ContactBook'
 import AuthBar from './components/AuthBar'
 import { supabase } from './supabase'
-import { loadState, saveState, makeCard, makeColumn, makeGroup, uid } from './storage'
+import {
+  loadState,
+  saveState,
+  makeCard,
+  makeColumn,
+  makeGroup,
+  uid,
+  loadZoom,
+  saveZoom,
+  ZOOM_MIN,
+  ZOOM_MAX,
+  ZOOM_STEP,
+} from './storage'
 
 // Les filtres disponibles en haut du tableau.
 const FILTERS = ['Tous', 'Pro', 'Perso', 'Idée']
@@ -30,6 +42,8 @@ export default function App() {
   // Vue du tableau : 'themes' (colonnes = thèmes) ou 'categories'
   // (colonnes = Pro/Perso/Idée, glisser-déposer pour changer la catégorie).
   const [boardView, setBoardView] = useState('themes')
+  // Niveau de zoom de l'affichage (réglage local, persisté par appareil).
+  const [zoom, setZoom] = useState(loadZoom)
 
   // Synchronisation cloud (Supabase).
   const [session, setSession] = useState(null)
@@ -379,6 +393,18 @@ export default function App() {
     )
   )
 
+  // ---------- Zoom de l'affichage ----------
+  useEffect(() => {
+    saveZoom(zoom)
+  }, [zoom])
+
+  function changeZoom(delta) {
+    setZoom(z => {
+      const next = Math.round((z + delta) * 100) / 100
+      return Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, next))
+    })
+  }
+
   return (
     <div className="app">
       <header className="app-header">
@@ -431,6 +457,33 @@ export default function App() {
               Catégories
             </button>
           </div>
+          <div className="zoom-control" role="group" aria-label="Zoom de l'affichage">
+            <button
+              className="zoom-btn"
+              onClick={() => changeZoom(-ZOOM_STEP)}
+              disabled={zoom <= ZOOM_MIN}
+              title="Dézoomer"
+              aria-label="Dézoomer"
+            >
+              −
+            </button>
+            <button
+              className="zoom-level"
+              onClick={() => setZoom(1)}
+              title="Réinitialiser le zoom (100 %)"
+            >
+              {Math.round(zoom * 100)} %
+            </button>
+            <button
+              className="zoom-btn"
+              onClick={() => changeZoom(ZOOM_STEP)}
+              disabled={zoom >= ZOOM_MAX}
+              title="Zoomer"
+              aria-label="Zoomer"
+            >
+              ＋
+            </button>
+          </div>
           <button className="ghost-btn" onClick={() => setShowContacts(true)}>
             Carnet
           </button>
@@ -442,7 +495,7 @@ export default function App() {
         </div>
       </header>
 
-      <main className="board">
+      <main className="board" style={{ zoom }}>
         {boardView === 'categories' ? (
           <CategoryBoard
             cards={allCards}
