@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { LINK_TYPES } from '../storage'
 
 // Cycle des priorités : un clic passe à la suivante.
@@ -6,6 +6,30 @@ const PRIORITY_NEXT = { Haute: 'Moyenne', Moyenne: 'Basse', Basse: 'Haute' }
 
 // Libellé affiché pour chaque type de lien.
 const LINK_LABEL = Object.fromEntries(LINK_TYPES.map(t => [t.key, t.label]))
+
+// Mots vides ignorés pour les suggestions de liens (FR + EN courants).
+const STOPWORDS = new Set([
+  'avec', 'pour', 'dans', 'les', 'des', 'une', 'un', 'le', 'la', 'de', 'du',
+  'et', 'en', 'sur', 'par', 'que', 'qui', 'aux', 'ses', 'son', 'sa', 'nos',
+  'the', 'and', 'for', 'with', 'this', 'that', 'from', 'into', 'your', 'our',
+])
+
+// Extrait les mots-clés significatifs d'un texte (≥ 4 lettres, hors mots vides).
+function keywordSet(text) {
+  return new Set(
+    text
+      .toLowerCase()
+      .split(/[^a-zà-ÿ0-9]+/)
+      .filter(w => w.length >= 4 && !STOPWORDS.has(w))
+  )
+}
+
+// Nombre de mots-clés communs entre deux ensembles.
+function overlap(a, b) {
+  let n = 0
+  for (const w of a) if (b.has(w)) n++
+  return n
+}
 
 // Une carte = un sujet, avec titre, note, priorité, personnes et liens.
 export default function Card({
@@ -24,6 +48,9 @@ export default function Card({
   const [showLinks, setShowLinks] = useState(false)
   const [linkTarget, setLinkTarget] = useState('')
   const [linkType, setLinkType] = useState('lié')
+  // @mention en cours dans la note : { query, index } ou null.
+  const [mention, setMention] = useState(null)
+  const noteRef = useRef(null)
 
   // Priorité actuelle (Moyenne par défaut pour les cartes existantes sans champ).
   const priority = card.priority || 'Moyenne'
@@ -80,6 +107,55 @@ export default function Card({
     linkApi.onHover(id)
     setTimeout(() => linkApi.onHover(null), 1400)
   }
+
+  // ---------- @mention dans la note ----------
+  // Détecte un « @mot » juste avant le curseur pour proposer une carte.
+  function detectMention(el) {
+    const before = el.value.slice(0, el.selectionStart)
+    const m = before.match(/@([^\s@]*)$/)
+    setMention(m ? { query: m[1], index: 0 } : null)
+  }
+
+  const mentionMatches = mention
+    ? linkApi.cards
+        .filter(
+          c =>
+            c.id !== card.id &&
+            (c.title || 'Sans titre').toLowerCase().includes(mention.query.toLowerCase())
+        )
+        .slice(0, 6)
+    : []
+
+  // Remplace le « @query » par « @Titre » et crée le lien correspondant.
+  function applyMention(target) {
+    const el = noteRef.current
+    const caret = el ? el.selectionStart : card.note.length
+    const before = card.note.slice(0, caret)
+    const after = card.note.slice(caret)
+    const atIdx = before.lastIndexOf('@')
+    if (atIdx === -1) return
+    const title = target.title || 'Sans titre'
+    onUpdate({ ...card, note: before.slice(0, atIdx) + '@' + title + ' ' + after })
+    linkApi.onAdd(card.id, target.id, 'lié')
+    setMention(null)
+  }
+
+  // ---------- Suggestions de liens (mots-clés communs) ----------
+  const linkedSet = new Set(myLinks.map(l => (l.from === card.id ? l.to : l.from)))
+  const myWords = keywordSet((card.title || '') + ' ' + (card.note || ''))
+  const suggestions =
+    myWords.size === 0
+      ? []
+      : linkApi.cards
+          .filter(c => c.id !== card.id && !linkedSet.has(c.id))
+          .map(c => ({
+            id: c.id,
+            title: c.title,
+            score: overlap(myWords, keywordSet((c.title || '') + ' ' + (c.note || ''))),
+          }))
+          .filter(c => c.score > 0)
+          .sort((a, b) => b.score - a.score)
+          .slice(0, 4)
 
   // États visuels de surlignage selon la carte survolée dans tout le tableau.
   const isHover = linkApi.hoverId === card.id
@@ -138,14 +214,65 @@ export default function Card({
       )}
 
       {editingNote ? (
-        <textarea
-          className="card-note-input"
-          autoFocus
-          value={card.note}
-          placeholder="Écrire une note…"
-          onChange={e => onUpdate({ ...card, note: e.target.value })}
-          onBlur={() => setEditingNote(false)}
-        />
+        <div className="note-edit">
+          <textarea
+            ref={noteRef}
+            className="card-note-input"
+            autoFocus
+            value={card.note}
+            placeholder="Écrire une note… (@ pour lier une carte)"
+            onChange={e => {
+              onUpdate({ ...card, note: e.target.value })
+              detectMention(e.target)
+            }}
+            onClick={e => detectMention(e.target)}
+            onKeyUp={e => {
+              if (!['ArrowDown', 'ArrowUp', 'Enter', 'Escape'].includes(e.key)) {
+                detectMention(e.target)
+              }
+            }}
+            onKeyDown={e => {
+              if (!mention || mentionMatches.length === 0) {
+                if (e.key === 'Escape') setMention(null)
+                return
+              }
+              if (e.key === 'ArrowDown') {
+                e.preventDefault()
+                setMention(m => ({ ...m, index: (m.index + 1) % mentionMatches.length }))
+              } else if (e.key === 'ArrowUp') {
+                e.preventDefault()
+                setMention(m => ({
+                  ...m,
+                  index: (m.index - 1 + mentionMatches.length) % mentionMatches.length,
+                }))
+              } else if (e.key === 'Enter') {
+                e.preventDefault()
+                applyMention(mentionMatches[mention.index] || mentionMatches[0])
+              } else if (e.key === 'Escape') {
+                e.preventDefault()
+                setMention(null)
+              }
+            }}
+            onBlur={() => setTimeout(() => setEditingNote(false), 120)}
+          />
+          {mention && mentionMatches.length > 0 && (
+            <ul className="mention-list">
+              {mentionMatches.map((c, i) => (
+                <li key={c.id}>
+                  <button
+                    className={`mention-item${i === mention.index ? ' active' : ''}`}
+                    onMouseDown={e => {
+                      e.preventDefault()
+                      applyMention(c)
+                    }}
+                  >
+                    {c.title || 'Sans titre'}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       ) : (
         <p
           className={`card-note ${card.note ? '' : 'empty'}`}
@@ -229,6 +356,24 @@ export default function Card({
                 )
               })}
             </ul>
+          )}
+
+          {suggestions.length > 0 && (
+            <div className="link-suggestions">
+              <span className="link-sug-label">Suggestions</span>
+              <div className="link-sug-chips">
+                {suggestions.map(s => (
+                  <button
+                    key={s.id}
+                    className="link-sug-chip"
+                    onClick={() => linkApi.onAdd(card.id, s.id, 'lié')}
+                    title="Créer un lien « lié à »"
+                  >
+                    ＋ {s.title || 'Sans titre'}
+                  </button>
+                ))}
+              </div>
+            </div>
           )}
 
           {otherCards.length === 0 ? (

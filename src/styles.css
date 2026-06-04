@@ -612,6 +612,84 @@ body {
   font-size: 17px;
 }
 
+/* Suggestions de liens (mots-clés communs). */
+.link-suggestions {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.link-sug-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--ink-soft);
+}
+
+.link-sug-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.link-sug-chip {
+  font-size: 12px;
+  font-family: inherit;
+  padding: 3px 9px;
+  border: 1px dashed var(--accent);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.link-sug-chip:hover {
+  background: rgba(154, 91, 52, 0.08);
+}
+
+/* ===== @mention dans la note ===== */
+.note-edit {
+  position: relative;
+}
+
+.mention-list {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 4px;
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 20;
+  background: var(--paper);
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.mention-item {
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: transparent;
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 13px;
+  padding: 5px 8px;
+  border-radius: 7px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mention-item:hover,
+.mention-item.active {
+  background: var(--paper-2);
+  color: var(--accent);
+}
+
 .move-select {
   font-size: 13px;
   font-family: inherit;

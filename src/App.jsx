@@ -400,9 +400,12 @@ export default function App() {
   }
 
   // ---------- Données dérivées pour les liens ----------
-  // Liste à plat des cartes (pour le sélecteur « lier à… »).
+  // Liste à plat des cartes (pour le sélecteur « lier à… », le @mention et les
+  // suggestions par mots-clés communs).
   const allCardsFlat = groups.flatMap(g =>
-    g.columns.flatMap(c => c.cards.map(card => ({ id: card.id, title: card.title })))
+    g.columns.flatMap(c =>
+      c.cards.map(card => ({ id: card.id, title: card.title, note: card.note || '' }))
+    )
   )
   // Ids des cartes liées à la carte survolée (pour le surlignage).
   const linkedIds = new Set()
