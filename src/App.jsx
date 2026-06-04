@@ -196,12 +196,10 @@ export default function App() {
     }
   }
 
-  // Connexion par lien magique envoyé par e-mail.
-  async function signIn(email) {
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: { emailRedirectTo: window.location.href.split('#')[0] },
-    })
+  // Connexion par e-mail + mot de passe (le mot de passe se définit dans
+  // Supabase → Authentication → Users).
+  async function signIn(email, password) {
+    const { error } = await supabase.auth.signInWithPassword({ email, password })
     return error ? { ok: false, message: error.message } : { ok: true }
   }
 

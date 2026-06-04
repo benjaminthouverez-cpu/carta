@@ -1,21 +1,21 @@
 import { useState } from 'react'
 
-// Barre de connexion par e-mail (lien magique) + état de la synchronisation.
+// Barre de connexion par e-mail + mot de passe + état de la synchronisation.
 export default function AuthBar({ configured, session, status, onSignIn, onSignOut }) {
   const [email, setEmail] = useState('')
-  const [sent, setSent] = useState(false)
+  const [password, setPassword] = useState('')
   const [message, setMessage] = useState('')
 
-  async function handleSend() {
+  async function handleSignIn() {
     const e = email.trim()
-    if (!e) return
-    setMessage('Envoi…')
-    const res = await onSignIn(e)
+    if (!e || !password) return
+    setMessage('Connexion…')
+    const res = await onSignIn(e, password)
     if (res.ok) {
-      setSent(true)
-      setMessage('Lien envoyé ! Ouvre ta boîte mail et clique sur le lien.')
+      setPassword('')
+      setMessage('')
     } else {
-      setMessage(res.message || "Échec de l'envoi.")
+      setMessage(res.message || 'Échec de la connexion.')
     }
   }
 
@@ -44,25 +44,35 @@ export default function AuthBar({ configured, session, status, onSignIn, onSignO
     )
   }
 
-  // Déconnecté : champ e-mail pour recevoir le lien magique.
+  // Déconnecté : e-mail + mot de passe pour se connecter.
   return (
     <div className="auth-bar">
       <input
         className="auth-email"
         type="email"
-        placeholder="ton e-mail pour synchroniser"
+        placeholder="e-mail"
+        autoComplete="username"
         value={email}
         onChange={e => setEmail(e.target.value)}
         onKeyDown={e => {
-          if (e.key === 'Enter') handleSend()
+          if (e.key === 'Enter') handleSignIn()
         }}
       />
-      <button className="ghost-btn small" onClick={handleSend}>
-        Recevoir le lien
+      <input
+        className="auth-email"
+        type="password"
+        placeholder="mot de passe"
+        autoComplete="current-password"
+        value={password}
+        onChange={e => setPassword(e.target.value)}
+        onKeyDown={e => {
+          if (e.key === 'Enter') handleSignIn()
+        }}
+      />
+      <button className="ghost-btn small" onClick={handleSignIn}>
+        Se connecter
       </button>
-      {message && (
-        <span className={`sync-state ${sent ? 'ok' : 'muted'}`}>{message}</span>
-      )}
+      {message && <span className="sync-state muted">{message}</span>}
     </div>
   )
 }
