@@ -12,7 +12,7 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate', // met à jour l'app en arrière-plan
       injectRegister: 'auto', // injecte l'enregistrement du service worker
-      includeAssets: ['carta.svg'],
+      includeAssets: ['carta.svg', 'apple-touch-icon.png'],
       manifest: {
         name: 'Carta',
         short_name: 'Carta',
@@ -24,12 +24,15 @@ export default defineConfig({
         background_color: '#f7efdd',
         theme_color: '#9a5b34',
         icons: [
+          { src: 'pwa-192.png', sizes: '192x192', type: 'image/png' },
+          { src: 'pwa-512.png', sizes: '512x512', type: 'image/png' },
           {
-            src: 'carta.svg',
-            sizes: 'any',
-            type: 'image/svg+xml',
-            purpose: 'any maskable',
+            src: 'pwa-512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'maskable',
           },
+          { src: 'carta.svg', sizes: 'any', type: 'image/svg+xml' },
         ],
       },
     }),
