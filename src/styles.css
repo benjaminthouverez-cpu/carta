@@ -15,8 +15,14 @@
   box-sizing: border-box;
 }
 
+html,
+#root {
+  height: 100%;
+}
+
 body {
   margin: 0;
+  height: 100%;
   background: var(--paper);
   /* léger grain de papier */
   background-image: radial-gradient(rgba(122, 82, 54, 0.05) 1px, transparent 1px);
@@ -27,7 +33,7 @@ body {
 }
 
 .app {
-  min-height: 100vh;
+  height: 100vh;
   display: flex;
   flex-direction: column;
 }
@@ -232,6 +238,7 @@ body {
 /* ===== Tableau : pile verticale de groupes ===== */
 .board {
   flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 22px;
