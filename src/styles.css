@@ -143,6 +143,42 @@ body {
   background: var(--paper-2);
 }
 
+/* Bascule Tableau / Carte mentale. */
+.view-toggle {
+  display: flex;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--paper-2);
+}
+
+.view-btn {
+  border: none;
+  background: transparent;
+  padding: 8px 14px;
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+
+.view-btn.active {
+  background: var(--accent);
+  color: #fff7ea;
+}
+
+/* Vue carte mentale (React Flow). */
+.board-mindmap {
+  padding: 0;
+  overflow: hidden;
+}
+
+.mindmap {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+}
+
 /* Contrôle de zoom (− / % / +). */
 .zoom-control {
   display: flex;

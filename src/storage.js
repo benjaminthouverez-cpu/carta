@@ -86,6 +86,7 @@ export function loadState() {
           groups: data.groups,
           contacts: data.contacts || [],
           links: data.links || [],
+          positions: data.positions || {},
         }
       }
       // Ancienne version (colonnes à plat) : on les range dans un groupe
@@ -95,13 +96,14 @@ export function loadState() {
           groups: [makeGroup('Mes thèmes', data.columns)],
           contacts: data.contacts || [],
           links: [],
+          positions: {},
         }
       }
     }
   } catch (e) {
     // Données illisibles : on repart proprement.
   }
-  return { groups: defaultGroups(), contacts: [], links: [] }
+  return { groups: defaultGroups(), contacts: [], links: [], positions: {} }
 }
 
 // Enregistre l'état complet dans le navigateur.

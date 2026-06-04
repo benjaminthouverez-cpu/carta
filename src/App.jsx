@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import Group from './components/Group'
 import ContactBook from './components/ContactBook'
 import AuthBar from './components/AuthBar'
@@ -16,7 +16,15 @@ import {
   ZOOM_MIN,
   ZOOM_MAX,
   ZOOM_STEP,
+  LINK_TYPES,
 } from './storage'
+
+// Libellé affiché pour chaque type de lien.
+const LINK_LABEL = Object.fromEntries(LINK_TYPES.map(t => [t.key, t.label]))
+
+// La vue carte mentale embarque React Flow : on la charge à la demande pour
+// alléger le chargement initial de l'app.
+const MindMap = lazy(() => import('./components/MindMap'))
 
 // Identifiant unique de cet onglet/appareil. Il sert à reconnaître — et donc à
 // ignorer — nos PROPRES mises à jour qui nous reviennent en temps réel.
@@ -35,10 +43,14 @@ export default function App() {
   const [contacts, setContacts] = useState(initial.contacts)
   // Liens entre cartes, stockés à plat : { id, from, to, type }.
   const [links, setLinks] = useState(initial.links || [])
+  // Positions des nœuds dans la vue carte mentale : { cardId: {x, y} }.
+  const [positions, setPositions] = useState(initial.positions || {})
   // Carte survolée : sert à illuminer ses cartes liées dans tout le tableau.
   const [hoverId, setHoverId] = useState(null)
   const [search, setSearch] = useState('')
   const [showContacts, setShowContacts] = useState(false)
+  // Vue : 'tableau' (kanban) ou 'mindmap' (carte mentale).
+  const [boardView, setBoardView] = useState('tableau')
   // Niveau de zoom de l'affichage (réglage local, persisté par appareil).
   const [zoom, setZoom] = useState(loadZoom)
 
@@ -48,8 +60,8 @@ export default function App() {
   const [status, setStatus] = useState('')
   const lastSyncedRef = useRef(null) // dernier contenu envoyé/reçu (anti-boucle)
   const saveTimerRef = useRef(null)
-  const stateRef = useRef({ groups, contacts, links })
-  stateRef.current = { groups, contacts, links }
+  const stateRef = useRef({ groups, contacts, links, positions })
+  stateRef.current = { groups, contacts, links, positions }
 
   // --- Suivi de la session de connexion ---
   useEffect(() => {
@@ -89,11 +101,13 @@ export default function App() {
           groups: data.data.groups,
           contacts: data.data.contacts || [],
           links: data.data.links || [],
+          positions: data.data.positions || {},
         }
         lastSyncedRef.current = JSON.stringify(content)
         setGroups(content.groups)
         setContacts(content.contacts)
         setLinks(content.links)
+        setPositions(content.positions)
         setStatus('Synchronisé')
       } else {
         // Aucune donnée dans le cloud : on y pousse l'état local actuel.
@@ -131,11 +145,13 @@ export default function App() {
             groups: row.data.groups,
             contacts: row.data.contacts || [],
             links: row.data.links || [],
+            positions: row.data.positions || {},
           }
           lastSyncedRef.current = JSON.stringify(content)
           setGroups(content.groups)
           setContacts(content.contacts)
           setLinks(content.links)
+          setPositions(content.positions)
           setStatus('Mis à jour depuis un autre appareil')
         }
       )
@@ -147,7 +163,7 @@ export default function App() {
 
   // --- Sauvegarde : locale toujours, cloud si connecté ---
   useEffect(() => {
-    const payload = { groups, contacts, links }
+    const payload = { groups, contacts, links, positions }
     saveState(payload) // cache local (hors-ligne)
 
     if (!supabase || !session) return
@@ -160,7 +176,7 @@ export default function App() {
     saveTimerRef.current = setTimeout(() => {
       pushToCloud(session.user.id, payload)
     }, 700)
-  }, [groups, contacts, links, session, cloudReady])
+  }, [groups, contacts, links, positions, session, cloudReady])
 
   // Envoie l'état complet vers le cloud.
   async function pushToCloud(userId, payload) {
@@ -231,8 +247,14 @@ export default function App() {
         })),
       }))
     )
-    // On retire aussi les liens qui touchaient cette carte.
+    // On retire aussi les liens qui touchaient cette carte, et sa position.
     setLinks(ls => ls.filter(l => l.from !== cardId && l.to !== cardId))
+    setPositions(p => {
+      if (!(cardId in p)) return p
+      const next = { ...p }
+      delete next[cardId]
+      return next
+    })
   }
 
   // ---------- Liens entre cartes ----------
@@ -252,6 +274,17 @@ export default function App() {
 
   function deleteLink(linkId) {
     setLinks(ls => ls.filter(l => l.id !== linkId))
+  }
+
+  // Supprime plusieurs liens d'un coup (depuis la vue carte mentale).
+  function deleteLinks(ids) {
+    const set = new Set(ids)
+    setLinks(ls => ls.filter(l => !set.has(l.id)))
+  }
+
+  // Mémorise la position d'un nœud dans la vue carte mentale.
+  function setNodePosition(cardId, pos) {
+    setPositions(p => ({ ...p, [cardId]: pos }))
   }
 
   // Déplace une carte d'une colonne vers une autre (n'importe quel groupe).
@@ -404,7 +437,12 @@ export default function App() {
   // suggestions par mots-clés communs).
   const allCardsFlat = groups.flatMap(g =>
     g.columns.flatMap(c =>
-      c.cards.map(card => ({ id: card.id, title: card.title, note: card.note || '' }))
+      c.cards.map(card => ({
+        id: card.id,
+        title: card.title,
+        note: card.note || '',
+        priority: card.priority || 'Moyenne',
+      }))
     )
   )
   // Ids des cartes liées à la carte survolée (pour le surlignage).
@@ -443,12 +481,30 @@ export default function App() {
         </div>
 
         <div className="toolbar">
-          <input
-            className="search"
-            placeholder="Rechercher un sujet…"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-          />
+          <div className="view-toggle" role="group" aria-label="Mode d'affichage">
+            <button
+              className={`view-btn ${boardView === 'tableau' ? 'active' : ''}`}
+              onClick={() => setBoardView('tableau')}
+            >
+              Tableau
+            </button>
+            <button
+              className={`view-btn ${boardView === 'mindmap' ? 'active' : ''}`}
+              onClick={() => setBoardView('mindmap')}
+              title="Vue carte mentale — glissez d'une carte à l'autre pour les lier"
+            >
+              Carte mentale
+            </button>
+          </div>
+          {boardView === 'tableau' && (
+            <input
+              className="search"
+              placeholder="Rechercher un sujet…"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+            />
+          )}
+          {boardView === 'tableau' && (
           <div className="zoom-control" role="group" aria-label="Zoom de l'affichage">
             <button
               className="zoom-btn"
@@ -476,37 +532,56 @@ export default function App() {
               ＋
             </button>
           </div>
-          <button className="ghost-btn" onClick={addGroup}>
-            ＋ Groupe
-          </button>
+          )}
+          {boardView === 'tableau' && (
+            <button className="ghost-btn" onClick={addGroup}>
+              ＋ Groupe
+            </button>
+          )}
         </div>
       </header>
 
-      <main className="board" style={{ zoom }}>
-        {groups.map(group => (
-          <Group
-            key={group.id}
-            group={group}
-            groups={groups}
-            allColumns={allColumns}
-            contacts={contacts}
-            isVisibleCard={isVisibleCard}
-            onToggle={toggleGroup}
-            onRenameGroup={renameGroup}
-            onDeleteGroup={deleteGroup}
-            onAddColumn={addColumn}
-            onAddCard={addCard}
-            onUpdateCard={updateCard}
-            onDeleteCard={deleteCard}
-            onMoveCard={moveCard}
-            onRenameColumn={renameColumn}
-            onDeleteColumn={deleteColumn}
-            onMoveColumn={moveColumn}
-            onManageContacts={() => setShowContacts(true)}
-            linkApi={linkApi}
-          />
-        ))}
-      </main>
+      {boardView === 'mindmap' ? (
+        <main className="board board-mindmap">
+          <Suspense fallback={<p className="muted" style={{ padding: 24 }}>Chargement de la carte mentale…</p>}>
+            <MindMap
+              cards={allCardsFlat}
+              links={links}
+              positions={positions}
+              typeLabel={LINK_LABEL}
+              onConnect={(from, to) => addLink(from, to, 'lié')}
+              onDeleteLinks={deleteLinks}
+              onMoveNode={setNodePosition}
+            />
+          </Suspense>
+        </main>
+      ) : (
+        <main className="board" style={{ zoom }}>
+          {groups.map(group => (
+            <Group
+              key={group.id}
+              group={group}
+              groups={groups}
+              allColumns={allColumns}
+              contacts={contacts}
+              isVisibleCard={isVisibleCard}
+              onToggle={toggleGroup}
+              onRenameGroup={renameGroup}
+              onDeleteGroup={deleteGroup}
+              onAddColumn={addColumn}
+              onAddCard={addCard}
+              onUpdateCard={updateCard}
+              onDeleteCard={deleteCard}
+              onMoveCard={moveCard}
+              onRenameColumn={renameColumn}
+              onDeleteColumn={deleteColumn}
+              onMoveColumn={moveColumn}
+              onManageContacts={() => setShowContacts(true)}
+              linkApi={linkApi}
+            />
+          ))}
+        </main>
+      )}
 
       {showContacts && (
         <ContactBook
