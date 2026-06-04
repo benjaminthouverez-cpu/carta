@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import Group from './components/Group'
+import CategoryBoard from './components/CategoryBoard'
 import ContactBook from './components/ContactBook'
 import AuthBar from './components/AuthBar'
 import { supabase } from './supabase'
@@ -26,6 +27,9 @@ export default function App() {
   const [filter, setFilter] = useState('Tous')
   const [search, setSearch] = useState('')
   const [showContacts, setShowContacts] = useState(false)
+  // Vue du tableau : 'themes' (colonnes = thèmes) ou 'categories'
+  // (colonnes = Pro/Perso/Idée, glisser-déposer pour changer la catégorie).
+  const [boardView, setBoardView] = useState('themes')
 
   // Synchronisation cloud (Supabase).
   const [session, setSession] = useState(null)
@@ -199,6 +203,22 @@ export default function App() {
     )
   }
 
+  // Change la catégorie (étiquette) d'une carte, où qu'elle soit. Utilisé par
+  // la vue « Catégories » en glisser-déposer.
+  function setCardCategory(cardId, label) {
+    setGroups(gs =>
+      gs.map(g => ({
+        ...g,
+        columns: g.columns.map(c => ({
+          ...c,
+          cards: c.cards.map(card =>
+            card.id === cardId ? { ...card, label } : card
+          ),
+        })),
+      }))
+    )
+  }
+
   function deleteCard(cardId) {
     setGroups(gs =>
       gs.map(g => ({
@@ -335,16 +355,29 @@ export default function App() {
   }
 
   // ---------- Filtre + recherche ----------
+  // Recherche seule (titre + note) — utilisée par la vue « Catégories », où le
+  // filtre Pro/Perso/Idée n'a pas de sens puisque les colonnes SONT les catégories.
+  function matchesSearch(card) {
+    const q = search.trim().toLowerCase()
+    if (!q) return true
+    return (
+      card.title.toLowerCase().includes(q) ||
+      (card.note || '').toLowerCase().includes(q)
+    )
+  }
+
   function isVisibleCard(card) {
     if (filter !== 'Tous' && card.label !== filter) return false
-    const q = search.trim().toLowerCase()
-    if (q) {
-      const inTitle = card.title.toLowerCase().includes(q)
-      const inNote = (card.note || '').toLowerCase().includes(q)
-      if (!inTitle && !inNote) return false
-    }
-    return true
+    return matchesSearch(card)
   }
+
+  // Toutes les cartes à plat, avec le contexte de leur colonne d'origine
+  // (pour la vue par catégorie : déplacement de thème + e-mail restent possibles).
+  const allCards = groups.flatMap(g =>
+    g.columns.flatMap(c =>
+      c.cards.map(card => ({ card, columnId: c.id, columnTitle: c.title }))
+    )
+  )
 
   return (
     <div className="app">
@@ -369,49 +402,83 @@ export default function App() {
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
-          <div className="filters">
-            {FILTERS.map(f => (
-              <button
-                key={f}
-                className={`filter-btn ${filter === f ? 'active' : ''}`}
-                onClick={() => setFilter(f)}
-              >
-                {f}
-              </button>
-            ))}
+          {boardView === 'themes' && (
+            <div className="filters">
+              {FILTERS.map(f => (
+                <button
+                  key={f}
+                  className={`filter-btn ${filter === f ? 'active' : ''}`}
+                  onClick={() => setFilter(f)}
+                >
+                  {f}
+                </button>
+              ))}
+            </div>
+          )}
+          <div className="view-toggle" role="group" aria-label="Mode d'affichage">
+            <button
+              className={`filter-btn ${boardView === 'themes' ? 'active' : ''}`}
+              onClick={() => setBoardView('themes')}
+              title="Organiser par thèmes"
+            >
+              Thèmes
+            </button>
+            <button
+              className={`filter-btn ${boardView === 'categories' ? 'active' : ''}`}
+              onClick={() => setBoardView('categories')}
+              title="Organiser par catégorie — glissez une carte pour changer sa catégorie"
+            >
+              Catégories
+            </button>
           </div>
           <button className="ghost-btn" onClick={() => setShowContacts(true)}>
             Carnet
           </button>
-          <button className="ghost-btn" onClick={addGroup}>
-            ＋ Groupe
-          </button>
+          {boardView === 'themes' && (
+            <button className="ghost-btn" onClick={addGroup}>
+              ＋ Groupe
+            </button>
+          )}
         </div>
       </header>
 
       <main className="board">
-        {groups.map(group => (
-          <Group
-            key={group.id}
-            group={group}
-            groups={groups}
+        {boardView === 'categories' ? (
+          <CategoryBoard
+            cards={allCards}
             allColumns={allColumns}
             contacts={contacts}
-            isVisibleCard={isVisibleCard}
-            onToggle={toggleGroup}
-            onRenameGroup={renameGroup}
-            onDeleteGroup={deleteGroup}
-            onAddColumn={addColumn}
-            onAddCard={addCard}
+            matchesSearch={matchesSearch}
+            onSetCategory={setCardCategory}
             onUpdateCard={updateCard}
             onDeleteCard={deleteCard}
             onMoveCard={moveCard}
-            onRenameColumn={renameColumn}
-            onDeleteColumn={deleteColumn}
-            onMoveColumn={moveColumn}
             onManageContacts={() => setShowContacts(true)}
           />
-        ))}
+        ) : (
+          groups.map(group => (
+            <Group
+              key={group.id}
+              group={group}
+              groups={groups}
+              allColumns={allColumns}
+              contacts={contacts}
+              isVisibleCard={isVisibleCard}
+              onToggle={toggleGroup}
+              onRenameGroup={renameGroup}
+              onDeleteGroup={deleteGroup}
+              onAddColumn={addColumn}
+              onAddCard={addCard}
+              onUpdateCard={updateCard}
+              onDeleteCard={deleteCard}
+              onMoveCard={moveCard}
+              onRenameColumn={renameColumn}
+              onDeleteColumn={deleteColumn}
+              onMoveColumn={moveColumn}
+              onManageContacts={() => setShowContacts(true)}
+            />
+          ))
+        )}
       </main>
 
       {showContacts && (

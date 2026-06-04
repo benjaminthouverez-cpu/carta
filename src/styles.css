@@ -170,6 +170,31 @@ body {
   background: var(--paper-2);
 }
 
+/* Bascule Thèmes / Catégories, séparée des filtres par un trait. */
+.view-toggle {
+  display: flex;
+  gap: 6px;
+  padding-left: 10px;
+  border-left: 1px solid var(--line);
+}
+
+/* ===== Vue par catégorie (colonnes Pro / Perso / Idée) ===== */
+.category-board {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.category-column {
+  flex: 1 1 300px;
+  max-width: 440px;
+}
+
+.category-empty {
+  padding: 8px 2px;
+}
+
 /* ===== Tableau : pile verticale de groupes ===== */
 .board {
   flex: 1;
