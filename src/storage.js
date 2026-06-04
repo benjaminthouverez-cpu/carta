@@ -54,6 +54,18 @@ export function makeGroup(title, columns = []) {
   return { id: uid(), title, collapsed: false, columns }
 }
 
+// Types de liens entre cartes (clé stockée + libellé affiché).
+export const LINK_TYPES = [
+  { key: 'lié', label: 'lié à' },
+  { key: 'dépend', label: 'dépend de' },
+  { key: 'suite', label: 'suite de' },
+]
+
+// Crée un lien orienté entre deux cartes (from -> to).
+export function makeLink(from, to, type = 'lié') {
+  return { id: uid(), from, to, type }
+}
+
 // Groupes par défaut au tout premier lancement.
 function defaultGroups() {
   return [
@@ -70,7 +82,11 @@ export function loadState() {
       const data = JSON.parse(raw)
       // Nouvelle version : déjà structurée en groupes.
       if (data && Array.isArray(data.groups)) {
-        return { groups: data.groups, contacts: data.contacts || [] }
+        return {
+          groups: data.groups,
+          contacts: data.contacts || [],
+          links: data.links || [],
+        }
       }
       // Ancienne version (colonnes à plat) : on les range dans un groupe
       // pour ne rien perdre.
@@ -78,13 +94,14 @@ export function loadState() {
         return {
           groups: [makeGroup('Mes thèmes', data.columns)],
           contacts: data.contacts || [],
+          links: [],
         }
       }
     }
   } catch (e) {
     // Données illisibles : on repart proprement.
   }
-  return { groups: defaultGroups(), contacts: [] }
+  return { groups: defaultGroups(), contacts: [], links: [] }
 }
 
 // Enregistre l'état complet dans le navigateur.

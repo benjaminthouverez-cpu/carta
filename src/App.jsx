@@ -9,6 +9,7 @@ import {
   makeCard,
   makeColumn,
   makeGroup,
+  makeLink,
   uid,
   loadZoom,
   saveZoom,
@@ -32,6 +33,10 @@ export default function App() {
   const initial = loadState()
   const [groups, setGroups] = useState(initial.groups)
   const [contacts, setContacts] = useState(initial.contacts)
+  // Liens entre cartes, stockés à plat : { id, from, to, type }.
+  const [links, setLinks] = useState(initial.links || [])
+  // Carte survolée : sert à illuminer ses cartes liées dans tout le tableau.
+  const [hoverId, setHoverId] = useState(null)
   const [search, setSearch] = useState('')
   const [showContacts, setShowContacts] = useState(false)
   // Niveau de zoom de l'affichage (réglage local, persisté par appareil).
@@ -43,8 +48,8 @@ export default function App() {
   const [status, setStatus] = useState('')
   const lastSyncedRef = useRef(null) // dernier contenu envoyé/reçu (anti-boucle)
   const saveTimerRef = useRef(null)
-  const stateRef = useRef({ groups, contacts })
-  stateRef.current = { groups, contacts }
+  const stateRef = useRef({ groups, contacts, links })
+  stateRef.current = { groups, contacts, links }
 
   // --- Suivi de la session de connexion ---
   useEffect(() => {
@@ -83,10 +88,12 @@ export default function App() {
         const content = {
           groups: data.data.groups,
           contacts: data.data.contacts || [],
+          links: data.data.links || [],
         }
         lastSyncedRef.current = JSON.stringify(content)
         setGroups(content.groups)
         setContacts(content.contacts)
+        setLinks(content.links)
         setStatus('Synchronisé')
       } else {
         // Aucune donnée dans le cloud : on y pousse l'état local actuel.
@@ -120,10 +127,15 @@ export default function App() {
           // appliquées localement. On n'applique que les vraies mises à jour
           // venant d'un AUTRE appareil.
           if (row.data._writer === CLIENT_ID) return
-          const content = { groups: row.data.groups, contacts: row.data.contacts || [] }
+          const content = {
+            groups: row.data.groups,
+            contacts: row.data.contacts || [],
+            links: row.data.links || [],
+          }
           lastSyncedRef.current = JSON.stringify(content)
           setGroups(content.groups)
           setContacts(content.contacts)
+          setLinks(content.links)
           setStatus('Mis à jour depuis un autre appareil')
         }
       )
@@ -135,7 +147,7 @@ export default function App() {
 
   // --- Sauvegarde : locale toujours, cloud si connecté ---
   useEffect(() => {
-    const payload = { groups, contacts }
+    const payload = { groups, contacts, links }
     saveState(payload) // cache local (hors-ligne)
 
     if (!supabase || !session) return
@@ -148,7 +160,7 @@ export default function App() {
     saveTimerRef.current = setTimeout(() => {
       pushToCloud(session.user.id, payload)
     }, 700)
-  }, [groups, contacts, session, cloudReady])
+  }, [groups, contacts, links, session, cloudReady])
 
   // Envoie l'état complet vers le cloud.
   async function pushToCloud(userId, payload) {
@@ -219,6 +231,27 @@ export default function App() {
         })),
       }))
     )
+    // On retire aussi les liens qui touchaient cette carte.
+    setLinks(ls => ls.filter(l => l.from !== cardId && l.to !== cardId))
+  }
+
+  // ---------- Liens entre cartes ----------
+  function addLink(from, to, type) {
+    if (!from || !to || from === to) return
+    setLinks(ls => {
+      const exists = ls.some(
+        l =>
+          l.type === type &&
+          ((l.from === from && l.to === to) ||
+            // Un lien neutre « lié à » est non orienté : on évite le doublon inverse.
+            (type === 'lié' && l.from === to && l.to === from))
+      )
+      return exists ? ls : [...ls, makeLink(from, to, type)]
+    })
+  }
+
+  function deleteLink(linkId) {
+    setLinks(ls => ls.filter(l => l.id !== linkId))
   }
 
   // Déplace une carte d'une colonne vers une autre (n'importe quel groupe).
@@ -366,6 +399,30 @@ export default function App() {
     })
   }
 
+  // ---------- Données dérivées pour les liens ----------
+  // Liste à plat des cartes (pour le sélecteur « lier à… »).
+  const allCardsFlat = groups.flatMap(g =>
+    g.columns.flatMap(c => c.cards.map(card => ({ id: card.id, title: card.title })))
+  )
+  // Ids des cartes liées à la carte survolée (pour le surlignage).
+  const linkedIds = new Set()
+  if (hoverId) {
+    for (const l of links) {
+      if (l.from === hoverId) linkedIds.add(l.to)
+      else if (l.to === hoverId) linkedIds.add(l.from)
+    }
+  }
+  // Tout ce dont une carte a besoin pour les liens, regroupé en un seul prop.
+  const linkApi = {
+    links,
+    cards: allCardsFlat,
+    hoverId,
+    linkedIds,
+    onHover: setHoverId,
+    onAdd: addLink,
+    onDelete: deleteLink,
+  }
+
   return (
     <div className="app">
       <header className="app-header">
@@ -443,6 +500,7 @@ export default function App() {
             onDeleteColumn={deleteColumn}
             onMoveColumn={moveColumn}
             onManageContacts={() => setShowContacts(true)}
+            linkApi={linkApi}
           />
         ))}
       </main>

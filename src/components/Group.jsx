@@ -20,6 +20,7 @@ export default function Group({
   onDeleteColumn,
   onMoveColumn,
   onManageContacts,
+  linkApi,
 }) {
   const [editingName, setEditingName] = useState(false)
 
@@ -96,6 +97,7 @@ export default function Group({
               onDeleteColumn={onDeleteColumn}
               onMoveColumn={onMoveColumn}
               onManageContacts={onManageContacts}
+              linkApi={linkApi}
             />
           ))}
           {group.columns.length === 0 && (

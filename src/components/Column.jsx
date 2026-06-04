@@ -17,6 +17,7 @@ export default function Column({
   onDeleteColumn,
   onMoveColumn,
   onManageContacts,
+  linkApi,
 }) {
   const [newTitle, setNewTitle] = useState('')
   const [editingName, setEditingName] = useState(false)
@@ -129,6 +130,7 @@ export default function Column({
             onDelete={onDeleteCard}
             onMove={onMoveCard}
             onManageContacts={onManageContacts}
+            linkApi={linkApi}
           />
         ))}
       </div>
