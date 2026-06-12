@@ -1,7 +1,7 @@
 import { useState } from 'react'
 
 // Barre de connexion par e-mail + mot de passe + état de la synchronisation.
-export default function AuthBar({ configured, session, status, onSignIn, onSignOut }) {
+export default function AuthBar({ configured, session, status, onSignIn, onSignUp, onSignOut }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [message, setMessage] = useState('')
@@ -16,6 +16,26 @@ export default function AuthBar({ configured, session, status, onSignIn, onSignO
       setMessage('')
     } else {
       setMessage(res.message || 'Échec de la connexion.')
+    }
+  }
+
+  async function handleSignUp() {
+    const e = email.trim()
+    if (!e || !password) {
+      setMessage('Saisis un e-mail et un mot de passe pour créer un compte.')
+      return
+    }
+    setMessage('Création du compte…')
+    const res = await onSignUp(e, password)
+    if (res.ok) {
+      setPassword('')
+      setMessage(
+        res.needsConfirm
+          ? 'Compte créé — vérifie tes e-mails pour confirmer, puis connecte-toi.'
+          : ''
+      )
+    } else {
+      setMessage(res.message || 'Échec de la création du compte.')
     }
   }
 
@@ -71,6 +91,9 @@ export default function AuthBar({ configured, session, status, onSignIn, onSignO
       />
       <button className="ghost-btn small" onClick={handleSignIn}>
         Se connecter
+      </button>
+      <button className="ghost-btn small" onClick={handleSignUp}>
+        Créer un compte
       </button>
       {message && <span className="sync-state muted">{message}</span>}
     </div>

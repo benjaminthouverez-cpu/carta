@@ -196,11 +196,20 @@ export default function App() {
     }
   }
 
-  // Connexion par e-mail + mot de passe (le mot de passe se définit dans
-  // Supabase → Authentication → Users).
+  // Connexion par e-mail + mot de passe.
   async function signIn(email, password) {
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     return error ? { ok: false, message: error.message } : { ok: true }
+  }
+
+  // Création de compte en self-service : chaque personne s'inscrit elle-même
+  // et obtient son propre tableau privé.
+  async function signUp(email, password) {
+    const { data, error } = await supabase.auth.signUp({ email, password })
+    if (error) return { ok: false, message: error.message }
+    // Si la confirmation d'e-mail est activée côté Supabase, aucune session
+    // n'est ouverte tout de suite : la personne doit valider via l'e-mail reçu.
+    return { ok: true, needsConfirm: !data.session }
   }
 
   async function signOut() {
@@ -473,6 +482,7 @@ export default function App() {
             session={session}
             status={status}
             onSignIn={signIn}
+            onSignUp={signUp}
             onSignOut={signOut}
           />
         </div>
