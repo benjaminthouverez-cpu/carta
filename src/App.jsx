@@ -59,6 +59,11 @@ export default function App() {
   // true quand la personne revient via un lien « mot de passe oublié » et doit
   // définir un nouveau mot de passe.
   const [recovering, setRecovering] = useState(false)
+  // Permet d'annuler la dernière suppression (carte/colonne/groupe).
+  // undoState = { label } pendant que le toast est visible, sinon null.
+  const [undoState, setUndoState] = useState(null)
+  const undoSnapRef = useRef(null) // état complet capturé avant la suppression
+  const undoTimerRef = useRef(null)
   const [cloudReady, setCloudReady] = useState(false)
   const [status, setStatus] = useState('')
   const lastSyncedRef = useRef(null) // dernier contenu envoyé/reçu (anti-boucle)
@@ -241,6 +246,29 @@ export default function App() {
   // Toutes les colonnes, tous groupes confondus (utile pour déplacer une carte).
   const allColumns = groups.flatMap(g => g.columns)
 
+  // ---------- Annulation des suppressions ----------
+  // Mémorise l'état complet AVANT une suppression et affiche un toast « Annuler »
+  // pendant quelques secondes. stateRef.current reflète l'état du rendu courant
+  // (les setState étant asynchrones, il contient encore les données pré-suppression).
+  function captureUndo(label) {
+    undoSnapRef.current = stateRef.current
+    setUndoState({ label })
+    clearTimeout(undoTimerRef.current)
+    undoTimerRef.current = setTimeout(() => setUndoState(null), 6000)
+  }
+
+  // Restaure l'état capturé (la synchro cloud suivra automatiquement).
+  function performUndo() {
+    const snap = undoSnapRef.current
+    if (!snap) return
+    setGroups(snap.groups)
+    setContacts(snap.contacts)
+    setLinks(snap.links)
+    setPositions(snap.positions)
+    setUndoState(null)
+    clearTimeout(undoTimerRef.current)
+  }
+
   // ---------- Cartes (sujets) ----------
   function addCard(columnId, title) {
     setGroups(gs =>
@@ -266,6 +294,7 @@ export default function App() {
   }
 
   function deleteCard(cardId) {
+    captureUndo('Carte supprimée')
     setGroups(gs =>
       gs.map(g => ({
         ...g,
@@ -315,9 +344,32 @@ export default function App() {
     setPositions(p => ({ ...p, [cardId]: pos }))
   }
 
-  // Déplace une carte d'une colonne vers une autre (n'importe quel groupe).
-  function moveCard(cardId, fromCol, toCol) {
-    if (fromCol === toCol) return
+  // Retire les liens et positions associés à un ensemble de cartes (utilisé
+  // quand on supprime une colonne ou un groupe entier, pour ne pas laisser de
+  // liens « fantômes »).
+  function cleanupCards(cards) {
+    if (!cards || cards.length === 0) return
+    const ids = new Set(cards.map(c => c.id))
+    setLinks(ls => ls.filter(l => !ids.has(l.from) && !ids.has(l.to)))
+    setPositions(p => {
+      let changed = false
+      const next = { ...p }
+      for (const id of ids) {
+        if (id in next) {
+          delete next[id]
+          changed = true
+        }
+      }
+      return changed ? next : p
+    })
+  }
+
+  // Déplace une carte vers une autre colonne (n'importe quel groupe) ou la
+  // réordonne dans la même colonne. Si `beforeId` est fourni, la carte est
+  // insérée juste AVANT cette carte ; sinon elle est ajoutée à la fin.
+  function moveCard(cardId, fromCol, toCol, beforeId = null) {
+    // Déposer une carte sur elle-même ne fait rien.
+    if (cardId === beforeId) return
     setGroups(gs => {
       let moving = null
       const removed = gs.map(g => ({
@@ -333,9 +385,15 @@ export default function App() {
       if (!moving) return gs
       return removed.map(g => ({
         ...g,
-        columns: g.columns.map(c =>
-          c.id === toCol ? { ...c, cards: [...c.cards, moving] } : c
-        ),
+        columns: g.columns.map(c => {
+          if (c.id !== toCol) return c
+          if (!beforeId) return { ...c, cards: [...c.cards, moving] }
+          const idx = c.cards.findIndex(card => card.id === beforeId)
+          if (idx === -1) return { ...c, cards: [...c.cards, moving] }
+          const next = c.cards.slice()
+          next.splice(idx, 0, moving)
+          return { ...c, cards: next }
+        }),
       }))
     })
   }
@@ -367,9 +425,12 @@ export default function App() {
     ) {
       return
     }
+    captureUndo('Thème supprimé')
     setGroups(gs =>
       gs.map(g => ({ ...g, columns: g.columns.filter(c => c.id !== columnId) }))
     )
+    // On retire aussi les liens et positions des cartes de la colonne supprimée.
+    cleanupCards(col ? col.cards : [])
   }
 
   // Déplace une colonne entière vers un autre groupe.
@@ -414,7 +475,10 @@ export default function App() {
     ) {
       return
     }
+    captureUndo('Groupe supprimé')
     setGroups(gs => gs.filter(g => g.id !== groupId))
+    // On retire les liens et positions de toutes les cartes du groupe.
+    cleanupCards(grp ? grp.columns.flatMap(c => c.cards) : [])
   }
 
   // ---------- Carnet de contacts ----------
@@ -621,6 +685,15 @@ export default function App() {
           onDelete={deleteContact}
           onClose={() => setShowContacts(false)}
         />
+      )}
+
+      {undoState && (
+        <div className="undo-toast" role="status">
+          <span>{undoState.label}</span>
+          <button className="undo-btn" onClick={performUndo}>
+            Annuler
+          </button>
+        </div>
       )}
     </div>
   )

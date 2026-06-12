@@ -22,6 +22,14 @@ export default function Column({
   const [newTitle, setNewTitle] = useState('')
   const [editingName, setEditingName] = useState(false)
   const [dragOver, setDragOver] = useState(false)
+  // Carte actuellement survolée pendant un glisser (repère « insérer ici »).
+  const [dropTargetId, setDropTargetId] = useState(null)
+
+  // Identifiant de la carte sous le curseur pendant un glisser-déposer.
+  function cardIdAt(e) {
+    const el = e.target && e.target.closest ? e.target.closest('[data-card-id]') : null
+    return el ? el.getAttribute('data-card-id') : null
+  }
 
   // Ajoute une carte à partir du champ « + ajouter un sujet ».
   function addCard() {
@@ -31,13 +39,21 @@ export default function Column({
     setNewTitle('')
   }
 
-  // Réception d'une carte glissée-déposée dans cette colonne.
+  // Réception d'une carte glissée-déposée dans cette colonne. Si elle est lâchée
+  // sur une carte précise, on l'insère juste avant (réordonnancement) ; sinon on
+  // l'ajoute à la fin.
   function handleDrop(e) {
     e.preventDefault()
     setDragOver(false)
+    setDropTargetId(null)
     try {
       const { cardId, fromCol } = JSON.parse(e.dataTransfer.getData('text/plain'))
-      onMoveCard(cardId, fromCol, column.id)
+      const beforeId = cardIdAt(e)
+      if (beforeId && beforeId !== cardId) {
+        onMoveCard(cardId, fromCol, column.id, beforeId)
+      } else {
+        onMoveCard(cardId, fromCol, column.id)
+      }
     } catch (err) {
       // Donnée de glisser-déposer invalide : on ignore.
     }
@@ -50,9 +66,18 @@ export default function Column({
       className={`column ${dragOver ? 'drag-over' : ''}`}
       onDragOver={e => {
         e.preventDefault()
-        setDragOver(true)
+        if (!dragOver) setDragOver(true)
+        const id = cardIdAt(e)
+        if (id !== dropTargetId) setDropTargetId(id)
       }}
-      onDragLeave={() => setDragOver(false)}
+      onDragLeave={e => {
+        // On ne réinitialise que si l'on quitte vraiment la colonne (pas en
+        // passant d'une carte à l'autre à l'intérieur).
+        if (!e.currentTarget.contains(e.relatedTarget)) {
+          setDragOver(false)
+          setDropTargetId(null)
+        }
+      }}
       onDrop={handleDrop}
     >
       <div className="column-header">
@@ -117,6 +142,7 @@ export default function Column({
             columnTitle={column.title}
             columns={allColumns}
             contacts={contacts}
+            isDropTarget={dropTargetId === card.id}
             onUpdate={onUpdateCard}
             onDelete={onDeleteCard}
             onMove={onMoveCard}

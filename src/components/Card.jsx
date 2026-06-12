@@ -35,6 +35,7 @@ export default function Card({
   columnTitle,
   columns,
   contacts,
+  isDropTarget,
   onUpdate,
   onDelete,
   onMove,
@@ -154,13 +155,15 @@ export default function Card({
     'card' +
     (isHover ? ' card-hover' : '') +
     (isLinked ? ' card-linked' : '') +
-    (dim ? ' card-dim' : '')
+    (dim ? ' card-dim' : '') +
+    (isDropTarget ? ' card-drop-before' : '')
 
   return (
     <article
       id={'card-' + card.id}
       className={className}
       draggable
+      data-card-id={card.id}
       onMouseEnter={() => linkApi.onHover(card.id)}
       onMouseLeave={() => linkApi.onHover(null)}
       onDragStart={e => {
