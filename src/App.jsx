@@ -439,7 +439,6 @@ export default function App() {
         id: card.id,
         title: card.title,
         note: card.note || '',
-        priority: card.priority || 'Moyenne',
       }))
     )
   )

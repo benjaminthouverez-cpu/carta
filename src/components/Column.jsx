@@ -43,16 +43,7 @@ export default function Column({
     }
   }
 
-  // Rang de tri : les priorités fortes remontent en haut. À priorité égale,
-  // l'ordre d'origine est conservé (le tri de JS est stable).
-  const PRIORITY_RANK = { Haute: 0, Moyenne: 1, Basse: 2 }
-  const visibleCards = column.cards
-    .filter(isVisibleCard)
-    .slice()
-    .sort(
-      (a, b) =>
-        (PRIORITY_RANK[a.priority] ?? 1) - (PRIORITY_RANK[b.priority] ?? 1)
-    )
+  const visibleCards = column.cards.filter(isVisibleCard)
 
   return (
     <section

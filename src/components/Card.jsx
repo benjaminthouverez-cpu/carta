@@ -1,9 +1,6 @@
 import { useRef, useState } from 'react'
 import { LINK_TYPES } from '../storage'
 
-// Cycle des priorités : un clic passe à la suivante.
-const PRIORITY_NEXT = { Haute: 'Moyenne', Moyenne: 'Basse', Basse: 'Haute' }
-
 // Libellé affiché pour chaque type de lien.
 const LINK_LABEL = Object.fromEntries(LINK_TYPES.map(t => [t.key, t.label]))
 
@@ -31,7 +28,7 @@ function overlap(a, b) {
   return n
 }
 
-// Une carte = un sujet, avec titre, note, priorité, personnes et liens.
+// Une carte = un sujet, avec titre, note, personnes et liens.
 export default function Card({
   card,
   columnId,
@@ -51,14 +48,6 @@ export default function Card({
   // @mention en cours dans la note : { query, index } ou null.
   const [mention, setMention] = useState(null)
   const noteRef = useRef(null)
-
-  // Priorité actuelle (Moyenne par défaut pour les cartes existantes sans champ).
-  const priority = card.priority || 'Moyenne'
-
-  // Change la priorité au clic (Haute → Moyenne → Basse → Haute).
-  function cyclePriority() {
-    onUpdate({ ...card, priority: PRIORITY_NEXT[priority] || 'Moyenne' })
-  }
 
   // Construit le lien de composition Gmail pré-rempli (ouvre Gmail dans le
   // navigateur plutôt que l'application mail par défaut comme le ferait mailto:).
@@ -183,14 +172,6 @@ export default function Card({
       }}
     >
       <div className="card-top">
-        <button
-          className={`priority priority-${priority}`}
-          onClick={cyclePriority}
-          title="Cliquer pour changer la priorité"
-        >
-          <span className="priority-dot" />
-          {priority}
-        </button>
         <button className="icon-btn" title="Supprimer la carte" onClick={() => onDelete(card.id)}>
           ×
         </button>

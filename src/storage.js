@@ -36,12 +36,9 @@ export function uid() {
   return Math.random().toString(36).slice(2, 10) + Date.now().toString(36)
 }
 
-// Priorités possibles d'une carte, de la plus forte à la plus faible.
-export const PRIORITIES = ['Haute', 'Moyenne', 'Basse']
-
-// Crée une nouvelle carte (sujet). Priorité moyenne par défaut.
+// Crée une nouvelle carte (sujet).
 export function makeCard(title) {
-  return { id: uid(), title, note: '', priority: 'Moyenne', people: [] }
+  return { id: uid(), title, note: '', people: [] }
 }
 
 // Crée une nouvelle colonne (thème).
