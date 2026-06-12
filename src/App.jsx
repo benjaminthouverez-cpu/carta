@@ -56,6 +56,9 @@ export default function App() {
 
   // Synchronisation cloud (Supabase).
   const [session, setSession] = useState(null)
+  // true quand la personne revient via un lien « mot de passe oublié » et doit
+  // définir un nouveau mot de passe.
+  const [recovering, setRecovering] = useState(false)
   const [cloudReady, setCloudReady] = useState(false)
   const [status, setStatus] = useState('')
   const lastSyncedRef = useRef(null) // dernier contenu envoyé/reçu (anti-boucle)
@@ -67,8 +70,9 @@ export default function App() {
   useEffect(() => {
     if (!supabase) return
     supabase.auth.getSession().then(({ data }) => setSession(data.session))
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((event, s) => {
       setSession(s)
+      if (event === 'PASSWORD_RECOVERY') setRecovering(true)
     })
     return () => sub.subscription.unsubscribe()
   }, [])
@@ -215,6 +219,23 @@ export default function App() {
   async function signOut() {
     await supabase.auth.signOut()
     setStatus('')
+  }
+
+  // Envoie un e-mail de réinitialisation. Le lien ramène vers l'app, où la
+  // personne pourra définir un nouveau mot de passe.
+  async function resetPassword(email) {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.href,
+    })
+    return error ? { ok: false, message: error.message } : { ok: true }
+  }
+
+  // Définit le nouveau mot de passe (après clic sur le lien de récupération).
+  async function updatePassword(password) {
+    const { error } = await supabase.auth.updateUser({ password })
+    if (error) return { ok: false, message: error.message }
+    setRecovering(false)
+    return { ok: true }
   }
 
   // Toutes les colonnes, tous groupes confondus (utile pour déplacer une carte).
@@ -481,8 +502,11 @@ export default function App() {
             configured={!!supabase}
             session={session}
             status={status}
+            recovering={recovering}
             onSignIn={signIn}
             onSignUp={signUp}
+            onResetPassword={resetPassword}
+            onUpdatePassword={updatePassword}
             onSignOut={signOut}
           />
         </div>

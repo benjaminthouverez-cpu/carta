@@ -312,6 +312,25 @@ body {
   font-size: 13px;
 }
 
+/* Lien discret (ex. « Mot de passe oublié ? ») : pas de bordure, souligné. */
+.link-btn {
+  border: none;
+  background: transparent;
+  color: var(--ink-soft);
+  font-family: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 5px 4px;
+}
+
+.link-btn.small {
+  font-size: 13px;
+}
+
+.link-btn:hover {
+  color: var(--ink);
+}
+
 .group-columns {
   display: flex;
   gap: 16px;
