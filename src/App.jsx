@@ -6,6 +6,8 @@ import { supabase } from './supabase'
 import {
   loadState,
   saveState,
+  clearState,
+  freshState,
   makeCard,
   makeColumn,
   makeGroup,
@@ -48,6 +50,10 @@ export default function App() {
   // Carte survolée : sert à illuminer ses cartes liées dans tout le tableau.
   const [hoverId, setHoverId] = useState(null)
   const [search, setSearch] = useState('')
+  // Filtre : n'afficher que les cartes en retard (échéance passée).
+  const [dueOnly, setDueOnly] = useState(false)
+  // Événement « beforeinstallprompt » mémorisé pour proposer l'installation PWA.
+  const [installEvt, setInstallEvt] = useState(null)
   const [showContacts, setShowContacts] = useState(false)
   // Vue : 'tableau' (kanban) ou 'mindmap' (carte mentale).
   const [boardView, setBoardView] = useState('tableau')
@@ -224,6 +230,15 @@ export default function App() {
   async function signOut() {
     await supabase.auth.signOut()
     setStatus('')
+    // On vide le cache local et on revient à un tableau neuf, pour qu'un autre
+    // utilisateur du même navigateur ne voie pas le tableau précédent.
+    clearState()
+    const fresh = freshState()
+    setGroups(fresh.groups)
+    setContacts(fresh.contacts)
+    setLinks(fresh.links)
+    setPositions(fresh.positions)
+    lastSyncedRef.current = null
   }
 
   // Envoie un e-mail de réinitialisation. Le lien ramène vers l'app, où la
@@ -502,14 +517,56 @@ export default function App() {
     )
   }
 
-  // ---------- Recherche ----------
+  // ---------- Échéances ----------
+  // Date du jour au format AAAA-MM-JJ (pour comparer aux échéances des cartes).
+  const todayISO = new Date().toISOString().slice(0, 10)
+  function isOverdue(card) {
+    return !!card.due && card.due < todayISO
+  }
+
+  // ---------- Recherche / filtre ----------
   function isVisibleCard(card) {
+    if (dueOnly && !isOverdue(card)) return false
     const q = search.trim().toLowerCase()
     if (!q) return true
     return (
       card.title.toLowerCase().includes(q) ||
       (card.note || '').toLowerCase().includes(q)
     )
+  }
+
+  // ---------- Installation PWA ----------
+  useEffect(() => {
+    function onPrompt(e) {
+      e.preventDefault()
+      setInstallEvt(e)
+    }
+    window.addEventListener('beforeinstallprompt', onPrompt)
+    return () => window.removeEventListener('beforeinstallprompt', onPrompt)
+  }, [])
+
+  async function installApp() {
+    if (!installEvt) return
+    installEvt.prompt()
+    await installEvt.userChoice
+    setInstallEvt(null)
+  }
+
+  // ---------- Export ----------
+  // Télécharge tout le tableau en JSON (sauvegarde / partage de fichier).
+  function exportBoard() {
+    const payload = { groups, contacts, links, positions }
+    const blob = new Blob([JSON.stringify(payload, null, 2)], {
+      type: 'application/json',
+    })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'carta-' + todayISO + '.json'
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    setTimeout(() => URL.revokeObjectURL(url), 200)
   }
 
   // ---------- Zoom de l'affichage ----------
@@ -629,8 +686,25 @@ export default function App() {
           </div>
           )}
           {boardView === 'tableau' && (
+            <button
+              className={`ghost-btn${dueOnly ? ' active' : ''}`}
+              onClick={() => setDueOnly(v => !v)}
+              title="N'afficher que les cartes en retard"
+            >
+              ⏰ En retard
+            </button>
+          )}
+          {boardView === 'tableau' && (
             <button className="ghost-btn" onClick={addGroup}>
               ＋ Groupe
+            </button>
+          )}
+          <button className="ghost-btn" onClick={exportBoard} title="Télécharger le tableau en JSON">
+            Exporter
+          </button>
+          {installEvt && (
+            <button className="ghost-btn" onClick={installApp} title="Installer Carta sur cet appareil">
+              Installer
             </button>
           )}
         </div>

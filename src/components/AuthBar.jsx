@@ -1,5 +1,8 @@
 import { useState } from 'react'
 
+// Validation basique d'une adresse e-mail (avant d'appeler Supabase).
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
 // Barre de connexion par e-mail + mot de passe + état de la synchronisation.
 export default function AuthBar({
   configured,
@@ -19,6 +22,10 @@ export default function AuthBar({
   async function handleSignIn() {
     const e = email.trim()
     if (!e || !password) return
+    if (!EMAIL_RE.test(e)) {
+      setMessage('Adresse e-mail invalide.')
+      return
+    }
     setMessage('Connexion…')
     const res = await onSignIn(e, password)
     if (res.ok) {
@@ -33,6 +40,14 @@ export default function AuthBar({
     const e = email.trim()
     if (!e || !password) {
       setMessage('Saisis un e-mail et un mot de passe pour créer un compte.')
+      return
+    }
+    if (!EMAIL_RE.test(e)) {
+      setMessage('Adresse e-mail invalide.')
+      return
+    }
+    if (password.length < 6) {
+      setMessage('Le mot de passe doit faire au moins 6 caractères.')
       return
     }
     setMessage('Création du compte…')

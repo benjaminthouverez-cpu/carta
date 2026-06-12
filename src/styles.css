@@ -149,6 +149,13 @@ body {
   background: var(--paper-2);
 }
 
+/* Bouton « activé » (ex. filtre En retard en cours). */
+.ghost-btn.active {
+  background: var(--accent);
+  color: var(--paper);
+  border-color: var(--accent);
+}
+
 /* Bascule Tableau / Carte mentale. */
 .view-toggle {
   display: flex;
@@ -461,8 +468,27 @@ body {
 
 .card-top {
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
   align-items: center;
+  gap: 8px;
+}
+
+/* Champ d'échéance discret en haut de carte. */
+.due-input {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink-soft);
+  font-family: inherit;
+  font-size: 11px;
+  padding: 2px 6px;
+  cursor: pointer;
+}
+
+.due-input.due-overdue {
+  color: #b23b2b;
+  border-color: #b23b2b;
+  font-weight: 600;
 }
 
 .card-title {
@@ -896,6 +922,18 @@ body {
 .contact-list::-webkit-scrollbar-thumb {
   background: var(--line);
   border-radius: 999px;
+}
+
+/* ===== Écran d'erreur (filet de sécurité) ===== */
+.error-boundary {
+  max-width: 420px;
+  margin: 80px auto;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  color: var(--ink);
 }
 
 /* ===== Toast « Annuler » après une suppression ===== */

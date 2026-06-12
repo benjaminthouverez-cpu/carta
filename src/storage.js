@@ -36,9 +36,9 @@ export function uid() {
   return Math.random().toString(36).slice(2, 10) + Date.now().toString(36)
 }
 
-// Crée une nouvelle carte (sujet).
+// Crée une nouvelle carte (sujet). `due` = échéance optionnelle (AAAA-MM-JJ).
 export function makeCard(title) {
-  return { id: uid(), title, note: '', people: [] }
+  return { id: uid(), title, note: '', due: '', people: [] }
 }
 
 // Crée une nouvelle colonne (thème).
@@ -100,7 +100,22 @@ export function loadState() {
   } catch (e) {
     // Données illisibles : on repart proprement.
   }
+  return freshState()
+}
+
+// État neuf (tableau d'exemple) — utilisé au tout premier lancement et après
+// déconnexion, pour ne pas laisser le tableau de quelqu'un d'autre à l'écran.
+export function freshState() {
   return { groups: defaultGroups(), contacts: [], links: [], positions: {} }
+}
+
+// Efface le cache local (à la déconnexion sur un navigateur partagé).
+export function clearState() {
+  try {
+    localStorage.removeItem(STORAGE_KEY)
+  } catch (e) {
+    // Stockage indisponible : on ignore.
+  }
 }
 
 // Enregistre l'état complet dans le navigateur.

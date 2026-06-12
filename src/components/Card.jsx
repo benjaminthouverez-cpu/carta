@@ -50,6 +50,9 @@ export default function Card({
   const [mention, setMention] = useState(null)
   const noteRef = useRef(null)
 
+  // Échéance dépassée ? (comparaison de dates au format AAAA-MM-JJ).
+  const isOverdue = !!card.due && card.due < new Date().toISOString().slice(0, 10)
+
   // Construit le lien de composition Gmail pré-rempli (ouvre Gmail dans le
   // navigateur plutôt que l'application mail par défaut comme le ferait mailto:).
   function emailHref() {
@@ -175,6 +178,13 @@ export default function Card({
       }}
     >
       <div className="card-top">
+        <input
+          type="date"
+          className={`due-input${isOverdue ? ' due-overdue' : ''}`}
+          value={card.due || ''}
+          onChange={e => onUpdate({ ...card, due: e.target.value })}
+          title={isOverdue ? 'Échéance dépassée' : 'Échéance'}
+        />
         <button className="icon-btn" title="Supprimer la carte" onClick={() => onDelete(card.id)}>
           ×
         </button>
